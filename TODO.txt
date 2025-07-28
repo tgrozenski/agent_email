@@ -1,0 +1,16 @@
+clientID -> 523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent.com
+
+Thin Client Architecture
+
+Components:
+    - Client page:
+        - Sets up initialize OAUTH (necessary permissions for reading emails and drafts)
+        - Programmatically create a new pub/sub for the user's emails.
+        - Contains link to the cloud function of which the email will be pushed to
+        - Creates knowledge base tied to some kind of user ID
+        - Mongo DB document store initialized on google cloud to be added to
+
+    - Cloud function (webhook)
+        - hosted on google cloud.
+        - Does work of querying gemini
+        - Queries knowledge base (Mongo DBO) for context.
