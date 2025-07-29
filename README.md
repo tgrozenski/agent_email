@@ -51,7 +51,6 @@ This is a serverless function hosted on Google Cloud that acts as the webhook en
 ## 4. Authentication
 
 *   **OAuth 2.0:** User authentication and authorization are handled via Google's OAuth 2.0.
-*   **Client ID:** `523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent.com`
 *   **User Identification:** The user's email address will be used as the unique identifier for their data and resources.
 
 ## 5. TBD
