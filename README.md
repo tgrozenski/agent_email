@@ -16,7 +16,7 @@ The flow is as follows:
 
 ### 2.1. Client Page
 
-The client page is the user-facing component of the system. We will use Firebase hosting and plain JS, HTML, and CSS. This makes sense for the design given how simple the client needs to be, it will be interacting primarily with APIs and over network.
+The client page is the user-facing component of the system. We will use Firebase to host a React frontend. This makes sense for the design given how straightforward the client needs to be, it will be interacting primarily with APIs and over network.
 
 **Responsibilities:**
 
@@ -31,8 +31,7 @@ The client page is the user-facing component of the system. We will use Firebase
 
 ### 2.2. Cloud Function (Webhook)
 
-This is a serverless function hosted on Google Cloud that acts as the webhook endpoint for the Pub/Sub topic.
-This will be written in python for simplicity and use of the great libraries present for genAI.
+This is a serverless function hosted on Google Cloud that acts as the webhook endpoint for the Pub/Sub topic. This will be written in python for simplicity and use of the great libraries present for genAI.
 
 
 **Responsibilities:**
@@ -55,6 +54,6 @@ This will be written in python for simplicity and use of the great libraries pre
 *   **Client ID:** `523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent.com`
 *   **User Identification:** The user's email address will be used as the unique identifier for their data and resources.
 
-## 5. Open Questions
+## 5. TBD
 
 *   How is the user's knowledge base structured in MongoDB? Is it a separate database per user or a collection with a `userId` field?
