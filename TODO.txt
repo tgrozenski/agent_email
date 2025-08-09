@@ -2,6 +2,9 @@ clientID -> 523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent
 
 Thin Client Architecture
 
+1. Test and configure webhook
+2. Establish 
+
 Components:
     - Client page:
         - Sets up initialize OAUTH (necessary permissions for reading emails and drafts)

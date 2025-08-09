@@ -9,7 +9,7 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 # Configure the Gemini client with the API key from environment variables
-client = genai.Client(api_key=os.environ["GEMINI_API_KEY"])
+client = genai.Client(api_key=os.environ["GEMINI_AGENT_EMAIL"])
 
 # Create the FastAPI app
 app = FastAPI()
@@ -53,6 +53,9 @@ async def webhook(request: Request):
     except Exception as e:
         logger.error(f"An error occurred in the webhook: {e}")
         return JSONResponse(content={"error": "An internal server error occurred."}, status_code=500)
+
+async def pub_sub(request: Request):
+    ...
 
 @app.get("/")
 def read_root():

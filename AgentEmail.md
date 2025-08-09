@@ -2,7 +2,7 @@
 
 This document outlines the architecture for an email processing agent that automatically drafts responses to incoming emails.
 
-The system is designed to be provider-agnostic by leveraging universal email forwarding and standard web technologies. It prioritizes real-time processing and simplicity of the core application logic.
+The system is designed for a tight integration with Gmail, leveraging Google Cloud Pub/Sub for real-time, event-driven processing.
 
 ## Architectural Diagram
 
@@ -10,35 +10,41 @@ The following diagram illustrates the flow of data from the initial email receip
 
 ```mermaid
 sequenceDiagram
-    participant UserMailbox as "User's Mailbox (e.g., Gmail)"
-    participant WebhookService as "3rd Party Email Service (e.g., SendGrid)"
-    participant AgentApp as "Agent Application (Your Server)"
-    participant GoogleAPI as "Google Gmail API"
+    participant UserMailbox as "User's Mailbox (Gmail)"
+    participant GmailAPI as "Google Gmail API"
+    participant PubSub as "Google Cloud Pub/Sub"
+    participant AgentApp as "Agent Application (Cloud Function)"
 
-    UserMailbox->>WebhookService: 1. Forwards incoming email via user-configured rule
-    WebhookService->>AgentApp: 2. Parses email & sends Webhook (HTTP POST)
+    UserMailbox->>GmailAPI: 1. New email arrives
+    GmailAPI->>PubSub: 2. Pushes notification for new message
+    PubSub->>AgentApp: 3. Triggers Agent App with message data
     activate AgentApp
-    AgentApp->>AgentApp: 3. Processes email content & generates response
-    AgentApp->>GoogleAPI: 4. Creates draft via API call (OAuth 2.0)
-    GoogleAPI-->>AgentApp: 5. Confirms draft creation
+    AgentApp->>GmailAPI: 4. Fetches full email content using message ID
+    GmailAPI-->>AgentApp: 5. Returns email content
+    AgentApp->>AgentApp: 6. Processes content & generates response
+    AgentApp->>GmailAPI: 7. Creates draft reply via API call
+    GmailAPI-->>AgentApp: 8. Confirms draft creation
     deactivate AgentApp
-    Note over UserMailbox, GoogleAPI: 6. User sees new draft in their Gmail account
+    Note over UserMailbox: 9. User sees new draft in their Gmail account
 ```
 
 ## Components
 
-1.  **User's Mailbox (e.g., Gmail, Outlook)**
-    *   **Responsibility:** The user's primary email account.
-    *   **Configuration:** A forwarding rule is set up to automatically forward specific (or all) incoming emails to an address provided by the Webhook Service.
+1.  **User's Mailbox (Gmail)**
+    *   **Responsibility:** The user's primary email account and the source of incoming emails.
+    *   **Configuration:** The user grants permission for the application to access their mailbox via OAuth 2.0. No complex email forwarding rules are necessary.
 
-2.  **Third-Party Email Service (e.g., SendGrid, Mailgun)**
-    *   **Responsibility:** Ingesting emails and converting them into machine-readable webhooks.
-    *   **Function:** It provides a dedicated email address. When an email arrives, the service parses its content (sender, subject, body, attachments) into a structured JSON object and sends it as an HTTP POST request to a pre-configured URL.
+2.  **Google Cloud Pub/Sub**
+    *   **Responsibility:** A real-time messaging service that decouples the Gmail API from the Agent Application.
+    *   **Function:** It receives push notifications from the Gmail API whenever a new email arrives in the user's mailbox. It then pushes this notification to the Agent Application, triggering it to run.
 
-3.  **Agent Application (Your Server)**
+3.  **Agent Application (e.g., Cloud Function)**
     *   **Responsibility:** The core logic of the system.
-    *   **Function:** It exposes a secure API endpoint to receive the webhook from the email service. Upon receiving a request, it processes the email data, applies custom logic (e.g., calling an LLM), and generates the text for a response.
+    *   **Function:** It is subscribed to the Pub/Sub topic. When triggered by a notification, it uses the message ID from the notification to fetch the full email content from the Gmail API. It then processes the data, applies custom logic (e.g., calling an LLM), and generates the text for a response.
 
 4.  **Google Gmail API**
-    *   **Responsibility:** Interacting with the user's Gmail account programmatically.
-    *   **Function:** The Agent Application uses the Gmail API to create a new draft in the user's account. Authentication is handled securely via the OAuth 2.0 protocol, requiring one-time user consent.
+    *   **Responsibility:** The primary interface for interacting with the user's mailbox.
+    *   **Function:**
+        *   **Push Notifications:** It is configured to watch the user's mailbox (`watch()`) and send notifications to Pub/Sub on new email events.
+        *   **Data Retrieval:** It provides endpoints for the Agent Application to fetch email content.
+        *   **Draft Creation:** It allows the Agent Application to create a new draft in the user's account. Authentication is handled securely via the OAuth 2.0 protocol, requiring one-time user consent.
