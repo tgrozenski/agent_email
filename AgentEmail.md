@@ -2,49 +2,36 @@
 
 This document outlines the architecture for an email processing agent that automatically drafts responses to incoming emails.
 
-The system is designed for a tight integration with Gmail, leveraging Google Cloud Pub/Sub for real-time, event-driven processing.
+The system uses a secure, multi-user architecture built on Google Cloud. It separates the client-side authentication flow from the event-driven email processing flow.
 
 ## Architectural Diagram
 
-The following diagram illustrates the flow of data from the initial email receipt to the final draft creation.
-
-```mermaid
-sequenceDiagram
-    participant UserMailbox as "User's Mailbox (Gmail)"
-    participant GmailAPI as "Google Gmail API"
-    participant PubSub as "Google Cloud Pub/Sub"
-    participant AgentApp as "Agent Application (Cloud Function)"
-
-    UserMailbox->>GmailAPI: 1. New email arrives
-    GmailAPI->>PubSub: 2. Pushes notification for new message
-    PubSub->>AgentApp: 3. Triggers Agent App with message data
-    activate AgentApp
-    AgentApp->>GmailAPI: 4. Fetches full email content using message ID
-    GmailAPI-->>AgentApp: 5. Returns email content
-    AgentApp->>AgentApp: 6. Processes content & generates response
-    AgentApp->>GmailAPI: 7. Creates draft reply via API call
-    GmailAPI-->>AgentApp: 8. Confirms draft creation
-    deactivate AgentApp
-    Note over UserMailbox: 9. User sees new draft in their Gmail account
-```
+The architecture is divided into two main processes: a one-time user onboarding flow and a recurring, event-driven email processing flow.
 
 ## Components
 
-1.  **User's Mailbox (Gmail)**
-    *   **Responsibility:** The user's primary email account and the source of incoming emails.
-    *   **Configuration:** The user grants permission for the application to access their mailbox via OAuth 2.0. No complex email forwarding rules are necessary.
+1.  **Frontend Application**
+    *   **Responsibility:** Handles all user-facing interaction for the one-time OAuth 2.0 consent flow.
+    *   **Function:** It initiates the Google Sign-In process and receives a temporary authorization code from Google upon user consent. It immediately sends this code to the backend's `/register` endpoint. **Crucially, it never handles sensitive tokens.**
 
-2.  **Google Cloud Pub/Sub**
-    *   **Responsibility:** A real-time messaging service that decouples the Gmail API from the Agent Application.
-    *   **Function:** It receives push notifications from the Gmail API whenever a new email arrives in the user's mailbox. It then pushes this notification to the Agent Application, triggering it to run.
+2.  **Backend Application (FastAPI)**
+    *   **Responsibility:** The secure, trusted core of the system. It is the only component that interacts with the database and Secret Manager.
+    *   **Endpoints:**
+        *   `/register`: A secure endpoint that receives the authorization code, exchanges it for a refresh token, and orchestrates storing the user's credentials and data.
+        *   **Pub/Sub Triggered Function:** The main email processing logic that is invoked by new messages on the Pub/Sub topic.
 
-3.  **Agent Application (e.g., Cloud Function)**
-    *   **Responsibility:** The core logic of the system.
-    *   **Function:** It is subscribed to the Pub/Sub topic. When triggered by a notification, it uses the message ID from the notification to fetch the full email content from the Gmail API. It then processes the data, applies custom logic (e.g., calling an LLM), and generates the text for a response.
+3.  **Google Cloud SQL**
+    *   **Responsibility:** A relational database (e.g., PostgreSQL) that stores non-sensitive user metadata.
+    *   **Function:** It acts as the central directory for mapping incoming emails to the correct user. It stores information like the user's Google ID, email address, and the resource name of their corresponding secret in Secret Manager. It **does not** store the actual OAuth tokens.
 
-4.  **Google Gmail API**
+4.  **Google Secret Manager**
+    *   **Responsibility:** A secure vault for storing highly sensitive credentials.
+    *   **Function:** It stores each user's encrypted OAuth Refresh Token. Access to these secrets is tightly controlled via IAM and is only granted to the Backend Application's service account.
+
+5.  **Google Cloud Pub/Sub**
+    *   **Responsibility:** A real-time messaging service that decouples the Gmail API from the Backend Application.
+    *   **Function:** It receives push notifications from the Gmail API when a new email arrives and triggers the backend processing function.
+
+6.  **Google Gmail API**
     *   **Responsibility:** The primary interface for interacting with the user's mailbox.
-    *   **Function:**
-        *   **Push Notifications:** It is configured to watch the user's mailbox (`watch()`) and send notifications to Pub/Sub on new email events.
-        *   **Data Retrieval:** It provides endpoints for the Agent Application to fetch email content.
-        *   **Draft Creation:** It allows the Agent Application to create a new draft in the user's account. Authentication is handled securely via the OAuth 2.0 protocol, requiring one-time user consent.
+    *   **Function:** It provides the OAuth 2.0 infrastructure, allows the backend to fetch email content, create drafts, and sends push notifications to Pub/Sub. All interactions are initiated by the trusted backend.
