@@ -2,18 +2,8 @@ clientID -> 523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent
 
 Thin Client Architecture
 
-1. Test and configure webhook
-2. Establish 
+1. Write the frontend, configure OAUTH
 
-Components:
-    - Client page:
-        - Sets up initialize OAUTH (necessary permissions for reading emails and drafts)
-        - Programmatically create a new pub/sub for the user's emails.
-        - Contains link to the cloud function of which the email will be pushed to
-        - Creates knowledge base tied to some kind of user ID
-        - Mongo DB document store initialized on google cloud to be added to
+2. Configure cloud mySQL database for storing credentials
 
-    - Cloud function (webhook)
-        - hosted on google cloud.
-        - Does work of querying gemini
-        - Queries knowledge base (Mongo DBO) for context.
+. Establish pub/sub

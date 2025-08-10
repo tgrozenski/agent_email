@@ -54,7 +54,9 @@ async def webhook(request: Request):
         logger.error(f"An error occurred in the webhook: {e}")
         return JSONResponse(content={"error": "An internal server error occurred."}, status_code=500)
 
-async def pub_sub(request: Request):
+# This method endpoint will be 'subscribed to the pub/sub endpoint'
+@app.post("/processEmail")
+def pub_sub(request: Request):
     ...
 
 @app.get("/")

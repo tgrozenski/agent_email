@@ -83,6 +83,9 @@ class TestWebhookUnit(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json(), {"error": "An internal server error occurred."})
+    
+    def test_process_email_success(self):
+        ...
 
 
 if __name__ == "__main__":
