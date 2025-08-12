@@ -6,13 +6,13 @@ import json
 import urllib.request
 import os
 from fastapi.testclient import TestClient
+import webbrowser
 
 # Add src to path to allow for imports
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.main import app, get_text_content
-
 
 class TestGetTextContent(unittest.TestCase):
 
@@ -84,9 +84,12 @@ class TestWebhookUnit(unittest.TestCase):
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json(), {"error": "An internal server error occurred."})
     
-    def test_process_email_success(self):
-        ...
+    def test_recieve_auth_token(self):
+        with open('testing/json/authCode.json', 'r') as file:
+            auth_code = json.load(file)
 
+        response = self.client.post("/register", json=auth_code)
+        self.assertEqual(response.status_code, 200)
 
 if __name__ == "__main__":
     unittest.main()

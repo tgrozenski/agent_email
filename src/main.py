@@ -1,8 +1,17 @@
 import os
+from fastapi.middleware.cors import CORSMiddleware
+from google.oauth2 import id_token
+from google.auth.transport import requests
+import json
+from google.auth.transport.requests import Request
+from google_auth_oauthlib.flow import Flow
+from googleapiclient.discovery import build
 import logging
 from google import genai
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+
+WEB_CLIENT_ID = "592589126466-flt6lvus63683vern3igrska7sllq2s9.apps.googleusercontent.com"
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -13,6 +22,21 @@ client = genai.Client(api_key=os.environ["GEMINI_AGENT_EMAIL"])
 
 # Create the FastAPI app
 app = FastAPI()
+
+origins = [
+    "https://tgrozenski.github.io",
+    "http://localhost",
+    "http://localhost:8000",
+]
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=origins,
+    allow_credentials=True,
+    allow_methods=["*"], # Allows all methods
+    allow_headers=["*"], # Allows all headers
+)
+
 
 def get_text_content(prompt: str) -> str:
     """Generates text content using the Gemini model."""
@@ -54,7 +78,34 @@ async def webhook(request: Request):
         logger.error(f"An error occurred in the webhook: {e}")
         return JSONResponse(content={"error": "An internal server error occurred."}, status_code=500)
 
-# This method endpoint will be 'subscribed to the pub/sub endpoint'
+"""
+This is the endpoint to exchange the permission code with token to be used by our API
+Note: requires running frontend and backend simultaneously on localhost
+"""
+@app.post("/register")
+async def recieve_auth_code(request: Request):
+    # Gets token
+    flow: Flow = Flow.from_client_secrets_file(
+        'credentials.json',
+        scopes=['email']
+    )
+
+    auth_code = await request.json()
+    print("this is the auth code", auth_code)
+    token: dict = flow.fetch_token(code=auth_code['code'])
+
+    # try:
+    #     idinfo = id_token.verify_oauth2_token(token, requests.Request(), WEB_CLIENT_ID)
+    #     print(idinfo)
+    # except Exception as e:
+    #     print(e)
+    #     print('request didnt go through')
+
+    # Create user profile using information from the token
+    # Creates new user and inserts into the database
+    ...
+
+# This method endpoint will be 'subscribed' to the pub/sub endpoint
 @app.post("/processEmail")
 def pub_sub(request: Request):
     ...
