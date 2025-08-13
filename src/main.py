@@ -1,8 +1,9 @@
 import os
+import psycopg2
+import pg8000.dbapi
 from fastapi.middleware.cors import CORSMiddleware
 from google.oauth2 import id_token
 from google.auth.transport import requests
-import json
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow
 from googleapiclient.discovery import build
@@ -12,6 +13,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
 WEB_CLIENT_ID = "592589126466-flt6lvus63683vern3igrska7sllq2s9.apps.googleusercontent.com"
+AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
 
 # Configure logging
 logging.basicConfig(level=logging.INFO)
@@ -86,24 +88,54 @@ Note: requires running frontend and backend simultaneously on localhost
 async def recieve_auth_code(request: Request):
     # Gets token
     flow: Flow = Flow.from_client_secrets_file(
-        'credentials.json',
-        scopes=['email']
+        'AgentEmailWebClientSecrets.json',
+        scopes=[
+            "openid",
+            "https://www.googleapis.com/auth/userinfo.email",
+            "https://www.googleapis.com/auth/gmail.readonly"
+        ]
     )
 
+    flow.redirect_uri = 'https://tgrozenski.github.io/agent_email_frontend.github.io/callback.html'
+
     auth_code = await request.json()
-    print("this is the auth code", auth_code)
     token: dict = flow.fetch_token(code=auth_code['code'])
+    user_name, user_email = None, None
 
-    # try:
-    #     idinfo = id_token.verify_oauth2_token(token, requests.Request(), WEB_CLIENT_ID)
-    #     print(idinfo)
-    # except Exception as e:
-    #     print(e)
-    #     print('request didnt go through')
+    try:
+        idinfo = id_token.verify_oauth2_token(
+            token['id_token'], requests.Request(), WEB_CLIENT_ID
+        )
+        
+        # Extract user info
+        user_name = idinfo.get('name', 'N/A')
+        user_email = idinfo.get('email', 'N/A')
 
-    # Create user profile using information from the token
-    # Creates new user and inserts into the database
-    ...
+        user_info_string = f"User: {user_name}, Email: {user_email}"
+        print(user_info_string)
+
+    except Exception as e:
+        print(f"Token verification failed: {e}")
+
+    # Connect to postgresSQL and insert new user
+    if user_name and user_email:
+        try:
+            conn = pg8000.dbapi.connect(
+                user="avnadmin",
+                password=AIVEN_PASSWORD,
+                host="pg-38474cd-agent-email.e.aivencloud.com",
+                port=17757,
+                database="defaultdb"
+            )
+            cur = conn.cursor()
+            cur.execute('INSERT INTO "user" (name, email) VALUES (%s, %s)', (user_name, user_email))
+            conn.commit()
+        except Exception as e:
+            print(f"An error occurred: {e}")
+        finally:
+            conn.close()
+
+    return {"message": f"User with email {user_email} and name {user_name} has been saved"}
 
 # This method endpoint will be 'subscribed' to the pub/sub endpoint
 @app.post("/processEmail")
