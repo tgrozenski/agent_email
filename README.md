@@ -22,15 +22,10 @@ The system uses a secure, multi-user architecture built on Google Cloud. It sepa
         *   **User Metadata:** Acts as the central directory for mapping incoming emails to the correct user. It stores information like the user's Google ID, email address, and the resource name of their corresponding secret in Secret Manager. It **does not** store the actual OAuth tokens.
         *   **Knowledge Base:** Stores each user's knowledge base documents. It leverages PostgreSQL's advanced features like the `JSONB` data type for storing semi-structured documents and Full-Text Search for efficient, intelligent searching of the document content. This consolidation simplifies the architecture by avoiding the need for a separate document database.
 
-4.  **Google Secret Manager**
-    *   **Responsibility:** A secure vault for storing highly sensitive credentials.
-    *   **Function:** It stores each user's encrypted OAuth Refresh Token. Access to these secrets is tightly controlled via IAM and is only granted to the Backend Application's service account.
-    - Note: configured by the frontend client
-
-5.  **Google Cloud Pub/Sub**
+4.  **Google Cloud Pub/Sub**
     *   **Responsibility:** A real-time messaging service that decouples the Gmail API from the Backend Application.
     *   **Function:** It receives push notifications from the Gmail API when a new email arrives. It uses a **Push Subscription** to forward these notifications immediately to the backend's `/pubSub` endpoint, triggering the processing logic in real-time.
 
-6.  **Google Gmail API**
+5.  **Google Gmail API**
     *   **Responsibility:** The primary interface for interacting with the user's mailbox.
     *   **Function:** It provides the OAuth 2.0 infrastructure, allows the backend to fetch email content, create drafts, and sends push notifications to Pub/Sub. All interactions are initiated by the trusted backend.

@@ -1,18 +1,16 @@
 import unittest
 from unittest.mock import patch, MagicMock
-import subprocess
-import time
-import json
-import urllib.request
+import os
 import os
 from fastapi.testclient import TestClient
-import webbrowser
 
 # Add src to path to allow for imports
 import sys
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from src.main import app, get_text_content, insert_new_user
+from src.main import app, get_text_content, DBManager
+db_manager = DBManager()
+    
 
 class TestGetTextContent(unittest.TestCase):
 
@@ -83,80 +81,3 @@ class TestWebhookUnit(unittest.TestCase):
 
         self.assertEqual(response.status_code, 500)
         self.assertEqual(response.json(), {"error": "An internal server error occurred."})
-
-class TestInsertNewUser(unittest.TestCase):
-
-    @patch('src.main.pg8000.dbapi.connect')
-    def test_insert_new_user_success(self, mock_connect):
-        """Test successful user insertion."""
-        # Arrange
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
-
-        user_name = "Test User"
-        user_email = "test@example.com"
-        refresh_token = "test_refresh_token"
-
-        # Act
-        response = insert_new_user(user_name, user_email, refresh_token)
-
-        # Assert
-        self.assertIsNone(response)
-        mock_connect.assert_called_once()
-        mock_conn.cursor.assert_called_once()
-        mock_cursor.execute.assert_called_once_with(
-            'INSERT INTO "user" (name, email, encrypted_refresh_token) '
-            'VALUES (%s, %s, %s) '
-            'ON CONFLICT (email) DO NOTHING',
-            (user_name, user_email, refresh_token)
-        )
-        mock_conn.commit.assert_called_once()
-        mock_conn.close.assert_called_once()
-
-    def test_insert_new_user_no_email(self):
-        """Test insertion with no email."""
-        response = insert_new_user("Test User", None, "test_token")
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(json.loads(response.body), {"error": "user_email or refresh_token are None."})
-
-    def test_insert_new_user_no_token(self):
-        """Test insertion with no refresh token."""
-        response = insert_new_user("Test User", "test@example.com", None)
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(json.loads(response.body), {"error": "user_email or refresh_token are None."})
-
-    @patch('src.main.pg8000.dbapi.connect')
-    def test_insert_new_user_db_error(self, mock_connect):
-        """Test handling of a database error during connect."""
-        # Arrange
-        mock_connect.side_effect = Exception("DB Connection Error")
-
-        # Act
-        response = insert_new_user("Test User", "test@example.com", "test_token")
-
-        # Assert
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(json.loads(response.body), {"error": "Database operation failed."})
-
-    @patch('src.main.pg8000.dbapi.connect')
-    def test_insert_new_user_db_execute_error(self, mock_connect):
-        """Test handling of a database error during execute."""
-        # Arrange
-        mock_conn = MagicMock()
-        mock_cursor = MagicMock()
-        mock_connect.return_value = mock_conn
-        mock_conn.cursor.return_value = mock_cursor
-        mock_cursor.execute.side_effect = Exception("DB Execute Error")
-
-        # Act
-        response = insert_new_user("Test User", "test@example.com", "test_token")
-
-        # Assert
-        self.assertEqual(response.status_code, 500)
-        self.assertEqual(json.loads(response.body), {"error": "Database operation failed."})
-        mock_conn.close.assert_called_once() # ensure connection is closed even on error
-
-if __name__ == "__main__":
-    unittest.main()

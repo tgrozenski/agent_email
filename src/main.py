@@ -1,26 +1,24 @@
 import os
 import json
-import base64
-from dataclasses import dataclass
-import DBMangager
-import pg8000.dbapi
+from db_manager import DBManager
 from fastapi.middleware.cors import CORSMiddleware
 from google.oauth2 import id_token
 from google.oauth2.credentials import Credentials
 from google.auth.transport import requests
 from google.auth.transport.requests import Request
 from google_auth_oauthlib.flow import Flow
-from googleapiclient.discovery import build
 from google import genai
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
+from google.oauth2.credentials import Credentials
+from googleapiclient.discovery import build
 
 WEB_CLIENT_ID = "592589126466-flt6lvus63683vern3igrska7sllq2s9.apps.googleusercontent.com"
 AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
 
 # Configure the Gemini client with the API key from environment variables
 client = genai.Client(api_key=os.environ["GEMINI_AGENT_EMAIL"])
-db_manager = DBMangager()
+db_manager = DBManager()
 
 # Create the FastAPI app
 app = FastAPI()
@@ -93,93 +91,24 @@ async def recieve_auth_code(request: Request):
         user_email = idinfo.get('email')
         refresh_token = token.get('refresh_token')
 
+        creds = Credentials(token=token['access_token'])
+        service = build('gmail', 'v1', credentials=creds)
+        profile = service.users().getProfile(userId='me').execute()
+        initial_history_id = profile.get('historyId')
+
         # insert new credentials into db
-        db_manager.insert_new_user(user_name, user_email, refresh_token)
-        
+        db_manager.insert_new_user(
+            name=user_name,
+            user_email=user_email,
+            refresh_token=refresh_token,
+            historyID=initial_history_id
+        )
 
     except Exception as e:
+        print(f"Token verification failed: {e}")
         return JSONResponse(content={"error": f"Token verification failed. {e}"}, status_code=400)
 
     return {"message": f"User {user_email} successfully registered."}
-
-@dataclass(frozen=True)
-class Email:
-    header : str
-    body : str
-    messageID : str
-    historyID : str
-
-def get_unprocessed_emails(access_token: str, start_history_id: str) -> list[Email]:
-    """
-    Uses the Gmail API to find and retrieve all emails received since the last known history ID.
-    """
-    creds = Credentials(token=access_token)
-    service = build('gmail', 'v1', credentials=creds)
-
-    try:
-        # Get the history of changes since the last known historyId
-        history = service.users().history().list(userId='me', startHistoryId=start_history_id).execute()
-
-        messages_added = []
-        if 'history' in history:
-            for h in history['history']:
-                if 'messagesAdded' in h:
-                    # We only care about new messages that are unread and in the inbox
-                    for added_msg in h['messagesAdded']:
-                        if 'INBOX' in added_msg['message']['labelIds'] and 'UNREAD' in added_msg['message']['labelIds']:
-                            messages_added.append(added_msg)
-
-        emails = []
-        if not messages_added:
-            return emails
-
-        # Fetch each new message
-        for added_msg in messages_added:
-            msg_id = added_msg['message']['id']
-            message = service.users().messages().get(userId='me', id=msg_id, format='full').execute()
-
-            payload = message['payload']
-            headers = payload['headers']
-            
-            subject = next((h['value'] for h in headers if h['name'] == 'Subject'), 'No Subject')
-            sender = next((h['value'] for h in headers if h['name'] == 'From'), 'Unknown Sender')
-            
-            header_info = f"Subject: {subject}\nFrom: {sender}"
-            
-            body = ""
-            if 'parts' in payload:
-                for part in payload['parts']:
-                    if part['mimeType'] == 'text/plain':
-                        body_data = part['body'].get('data')
-                        if body_data:
-                            body = base64.urlsafe_b64decode(body_data).decode('utf-8')
-                        break
-            else:
-                body_data = payload['body'].get('data')
-                if body_data:
-                    body = base64.urlsafe_b64decode(body_data).decode('utf-8')
-
-            email = Email(
-                header=header_info,
-                body=body,
-                messageID=msg_id,
-                historyID=message['historyId']
-            )
-            emails.append(email)
-
-        return emails
-
-    except Exception as e:
-        # Handle potential API errors, e.g., token expiration, permission issues
-        print(f"An error occurred while fetching emails: {e}")
-        return []
-
-
-def publish_draft(access_token, draft_body, message_id):
-    ...
-
-def get_response_body(email: Email):
-    return "Hello world this is a test reply from gemini"
 
 
 """
@@ -194,32 +123,32 @@ Responsible to
 """
 @app.post("/processEmail")
 async def pub_sub(request: Request):
-
-    pub_sub_dict = await request.json()
+    ...
+    # pub_sub_dict = await request.json()
     
-    # The data from pub/sub is base64 encoded and contains the user's email
-    message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
-    message_json = json.loads(message_data)
-    user_email = message_json['emailAddress']
+    # # The data from pub/sub is base64 encoded and contains the user's email
+    # message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
+    # message_json = json.loads(message_data)
+    # user_email = message_json['emailAddress']
 
-    refresh_token = db_manager.get_refresh_token(user_email)
-    access_token = get_access_token(refresh_token)
-    start_history_id = db_manager.get_history_id(user_email)
+    # refresh_token = db_manager.get_refresh_token(user_email)
+    # access_token = get_access_token(refresh_token)
+    # start_history_id = db_manager.get_history_id(user_email)
 
-    emails: list = get_unprocessed_emails(access_token, start_history_id)
+    # emails: list = get_unprocessed_emails(access_token, start_history_id)
 
-    if not emails:
-        return {"message": "No new emails to process."}
+    # if not emails:
+    #     return {"message": "No new emails to process."}
 
-    for email in emails:
-        response_body = get_response_body(email)
-        publish_draft(access_token, response_body, email.messageID)
+    # for email in emails:
+    #     response_body = get_response_body(email)
+    #     publish_draft(access_token, response_body, email.messageID)
     
-    # Update the history ID to the latest one from the processed batch
-    latest_history_id = max(int(email.historyID) for email in emails)
-    db_manager.update_historyID(user_email, str(latest_history_id))
+    # # Update the history ID to the latest one from the processed batch
+    # latest_history_id = max(int(email.historyID) for email in emails)
+    # db_manager.update_historyID(user_email, str(latest_history_id))
 
-    return {"message": f"Successfully processed {len(emails)} emails."}
+    # return {"message": f"Successfully processed {len(emails)} emails."}
 
 
 @app.get("/")
