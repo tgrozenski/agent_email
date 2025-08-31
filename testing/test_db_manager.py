@@ -3,7 +3,8 @@ import sys
 import os
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.main import DBManager
+
+from src.db_manager import DBManager
 
 class TestDBManagerUnit(unittest.TestCase):
     db_manager = DBManager()
@@ -15,7 +16,7 @@ class TestDBManagerUnit(unittest.TestCase):
         """Test inserting a new user."""
 
         # Act
-        response = self.db_manager.insert_new_user("Tyler", "tyler.grozenski@gmail.com", "842309842309", "historyID123")
+        response = self.db_manager.insert_new_user("Tyler", "bob@gmail.com", "842309842309", "historyID123")
 
         # Assert
         self.assertTrue(response)
@@ -36,16 +37,16 @@ class TestDBManagerUnit(unittest.TestCase):
 
         # Arrange
         # Insert a test user
-        self.db_manager.insert_new_user("Tyler", "tyler.grozenski@gmail.com", "842309842309", "historyID123")
+        self.db_manager.insert_new_user("Tyler", "bob@gmail.com", "842309842309", "historyID123")
 
         # Act
-        response = self.db_manager.update_historyID("tyler.grozenski@gmail.com", "newHistoryID")
+        response = self.db_manager.update_historyID("bob@gmail.com", "newHistoryID")
 
         self.assertTrue(response)
 
         # Assert
         self.cur.execute(
-            'SELECT history_id FROM "user" where email = \'tyler.grozenski@gmail.com\';'
+            'SELECT history_id FROM "user" where email = \'bob@gmail.com\';'
             )
 
         self.assertEqual(
@@ -62,17 +63,40 @@ class TestDBManagerUnit(unittest.TestCase):
 
         # Arrange
         # Insert a test user
-        self.db_manager.insert_new_user("Tyler", "tyler.grozenski@gmail.com", "842309842309", "historyID123")
+        self.db_manager.insert_new_user("Tyler", "bob@gmail.com", "842309842309", "historyID123")
 
         # Act
-        token = self.db_manager.get_refresh_token("tyler.grozenski@gmail.com")
+        token = self.db_manager.get_attribute(
+            attribute="encrypted_refresh_token",
+            user_email="bob@gmail.com"
+        )
 
-        # # Assert
+        # Assert
         self.assertEqual(token, "842309842309")
 
         # Cleanup
-        # self.cur.execute('DELETE FROM "user" where name = \'Tyler\';')
-        # self.con.commit()
+        self.cur.execute('DELETE FROM "user" where email = \'bob@gmail.com\';')
+        self.con.commit()
+
+    def test_get_history_id(self):
+        """Test getting history_id."""
+
+        # Arrange
+        # Insert a test user
+        self.db_manager.insert_new_user("Tyler", "bob@gmail.com", "842309842309", "historyID123")
+
+        # Act
+        token = self.db_manager.get_attribute(
+            attribute="history_id",
+            user_email="bob@gmail.com"
+        )
+
+        # Assert
+        self.assertEqual(token, "historyID123")
+
+        # Cleanup
+        self.cur.execute('DELETE FROM "user" where email = \'bob@gmail.com\';')
+        self.con.commit()
 
 
 if __name__ == "__main__":

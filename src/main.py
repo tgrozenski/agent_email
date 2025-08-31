@@ -12,6 +12,7 @@ from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
+from CredentialsManager import CredentialsManager
 
 WEB_CLIENT_ID = "592589126466-flt6lvus63683vern3igrska7sllq2s9.apps.googleusercontent.com"
 AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
@@ -79,9 +80,8 @@ Note: requires running frontend and backend simultaneously on localhost
 async def recieve_auth_code(request: Request):
 
     # get token
-    token = await get_initial_token(request)
+    token = await CredentialsManager.get_initial_token(request)
 
-    # access token
     try:
         idinfo = id_token.verify_oauth2_token(
             token['id_token'], requests.Request(), WEB_CLIENT_ID
@@ -92,6 +92,8 @@ async def recieve_auth_code(request: Request):
         refresh_token = token.get('refresh_token')
 
         creds = Credentials(token=token['access_token'])
+        CredentialsManager.creds = creds
+
         service = build('gmail', 'v1', credentials=creds)
         profile = service.users().getProfile(userId='me').execute()
         initial_history_id = profile.get('historyId')
@@ -154,43 +156,3 @@ async def pub_sub(request: Request):
 @app.get("/")
 def read_root():
     return {"message": "Webhook is running. Send a POST request to /webhook with a 'prompt' in the JSON body."}
-
-"""
-This function will take a refresh token and exchange it for a short
-lived access token necessary for using the gmail api
-"""
-def get_access_token(refresh_token: str) -> str:
-    with open('AgentEmailWebClientSecrets.json', 'r') as f:
-        client_secrets = json.load(f)['web']
-
-    creds = Credentials(
-        token=None,
-        refresh_token=refresh_token,
-        token_uri="https://oauth2.googleapis.com/token",
-        client_id=client_secrets['client_id'],
-        client_secret=client_secrets['client_secret'],
-        scopes=[
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://mail.google.com/",
-            "https://www.googleapis.com/auth/gmail.compose"
-        ]
-    )
-
-    creds.refresh(Request())
-    return creds.token
-
-
-async def get_initial_token(request: Request) -> dict:
-    flow: Flow = Flow.from_client_secrets_file(
-        'AgentEmailWebClientSecrets.json',
-        scopes=[
-            "openid",
-            "https://www.googleapis.com/auth/userinfo.email",
-            "https://mail.google.com/",
-            "https://www.googleapis.com/auth/gmail.compose"
-        ]
-    )
-    flow.redirect_uri = 'https://tgrozenski.github.io/agent_email_frontend.github.io/callback.html'
-
-    auth_code = await request.json()
-    return flow.fetch_token(code=auth_code['code'])

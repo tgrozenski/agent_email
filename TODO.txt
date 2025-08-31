@@ -3,6 +3,6 @@ clientID -> 523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent
 Thin Client Architecture
 https://developers.google.com/oauthplayground/ - for stepping throught the oAuth process
 
-1. Establish pub/sub
-2. Configure gmail API usage with access token
-3. Build dashboard page for documents to be added to knowledge base
+
+Establish pub/sub
+Build dashboard page for documents to be added to knowledge base

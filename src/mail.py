@@ -10,16 +10,17 @@ class Email:
     messageID : str
     historyID : str
 
-def get_unprocessed_emails(access_token: str, start_history_id: str) -> list[Email]:
+def get_unprocessed_emails(creds: Credentials, start_history_id: str) -> list[Email]:
     """
     Uses the Gmail API to find and retrieve all emails received since the last known history ID.
     """
-    creds = Credentials(token=access_token)
     service = build('gmail', 'v1', credentials=creds)
 
     try:
         # Get the history of changes since the last known historyId
         history = service.users().history().list(userId='me', startHistoryId=start_history_id).execute()
+
+        print("This is history", history)
 
         messages_added = []
         if 'history' in history:
@@ -30,6 +31,7 @@ def get_unprocessed_emails(access_token: str, start_history_id: str) -> list[Ema
                         if 'INBOX' in added_msg['message']['labelIds'] and 'UNREAD' in added_msg['message']['labelIds']:
                             messages_added.append(added_msg)
 
+        print("messages added: ", messages_added)
         emails = []
         if not messages_added:
             return emails
@@ -75,8 +77,8 @@ def get_unprocessed_emails(access_token: str, start_history_id: str) -> list[Ema
         print(f"An error occurred while fetching emails: {e}")
         return []
 
-def publish_draft(access_token, draft_body, message_id):
+def publish_draft(creds: Credentials, draft_body: str, message_id: str):
     ...
 
-def get_response_body(email: Email):
+def get_ai_draft(email: Email):
     return "Hello world this is a test reply from gemini"

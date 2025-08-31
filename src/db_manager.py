@@ -65,33 +65,31 @@ class DBManager:
                 conn.close()
 
         return True
-    
-    """
-    Returns the refresh token for a user identified by their email.
-    Returns None if user not found or on error.
-    """
-    def get_refresh_token(self, user_email: str) -> str:
 
+    def get_attribute(self, user_email: str, attribute: str) -> bool:
+        """
+        Fetch an attribute from the db with a given user email
+        """
         conn = None
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
             cur.execute(
-                'SELECT encrypted_refresh_token FROM "user" WHERE email = %s;', (user_email,)
+                f'SELECT {attribute} FROM \"user\" WHERE email = \'{user_email}\';'
             )
+
             res = cur.fetchone()
             if res:
                 return res[0]
             else:
                 return None
         except Exception as e:
-            print("Database operation failed in get_refresh_token.")
+            print("Database operation failed in last historyID.")
             print(e)
             return None
         finally:
             if conn:
                 conn.close()
-
 
     @staticmethod
     def getcon():
