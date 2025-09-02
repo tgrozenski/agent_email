@@ -12,19 +12,17 @@ CREATE TABLE "user" (
     encrypted_refresh_token TEXT
 );
 
--- Create the "document" table
 CREATE TABLE document (
     document_id SERIAL PRIMARY KEY,
-    -- Foreign key that links to the user table
     user_id INTEGER NOT NULL,
     document_name VARCHAR(255) NOT NULL,
     content TEXT,
+    embedding_vector VECTOR(1536),
 
     -- This sets up the one-to-many relationship between users and documents
     CONSTRAINT fk_user
         FOREIGN KEY(user_id)
         REFERENCES "user"(user_id)
-        -- If a user is deleted, all their documents are deleted as well.
         ON DELETE CASCADE
 );
 

@@ -154,7 +154,9 @@ def get_ai_draft(email: Email) -> str:
     Get a response draft from Gemini AI based on the email content.
     Assumes email is 'important' i.e. not greymail and needs a response.
     """
-    # call Gemini API with the message body and header
-    # give model opportunity to query knowledge base (psql db) 
+    # convert email into vector embedding for semantic matching with pgvector
+    # retrieve relevant documents from psql db using pgvector
+    # call Gemini API with relevant context retrieved from db + email body to generate draft
+    # Potentially use streaming to improve percieved performance
     # return a string that is the draft reply
     return "Hello world this is a test reply from gemini"
