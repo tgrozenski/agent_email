@@ -4,5 +4,68 @@ Thin Client Architecture
 https://developers.google.com/oauthplayground/ - for stepping throught the oAuth process
 
 
+Complete publish draft funcitonality
 Establish pub/sub
 Build dashboard page for documents to be added to knowledge base
+
+Found 20 new email(s).
+  - Subject: Subject: We found something you might like
+From: "Amazon.com" <store-news@amazon.com>
+  - Message ID: 19902d25ac67032a
+  - Subject: Subject: Software Engineer at Fashion Nova and 10 more jobs in Los Angeles, CA for you. Apply Now.
+From: Glassdoor Jobs <noreply@glassdoor.com>
+  - Message ID: 1990319362a4f333
+  - Subject: Subject: Make your summer count. Save: $50/yr.
+From: The New York Times <nytimes@e.newyorktimes.com>
+  - Message ID: 199034e452c98ed5
+  - Subject: Subject: Updates to Discord’s Policies
+From: Discord <notifications@discord.com>
+  - Message ID: 19903d14dc1b29b6
+  - Subject: Subject: George Lin made updates in George Lin's Notion
+From: Notion Team <notify@mail.notion.so>
+  - Message ID: 19905aa8b8ca0486
+  - Subject: Subject: Tyler, Remember Your Savings Start Here
+From: LifeMart <newsletter@email.lifecare-news.com>
+  - Message ID: 19905c59d89bd038
+  - Subject: Subject: Labor Day Deals up to 25% Off
+From: Los Angeles World Airports <hello@flylax.com>
+  - Message ID: 1990647ea72e66a9
+  - Subject: Subject: Expires Today: 10 FREE Classic Wings! ⏰ 🍗
+From: Wingstop <wingstop@eclub.wingstop.com>
+  - Message ID: 19906751e308b925
+  - Subject: Subject: ⭐ 55 New Internships Posted Today
+From: SWE List <noreply@swelist.com>
+  - Message ID: 19906e8902ae94a8
+  - Subject: Subject: Assistant Application Developer at Los Angeles County Department of Health Services and 9 more jobs in Los Angeles, CA for you. Apply Now.
+From: Glassdoor Jobs <noreply@glassdoor.com>
+  - Message ID: 1990840849f851f3
+  - Subject: Subject: Invitation to join your Louise Ave neighbors
+From: Nextdoor Louise Nugent <no-reply@is.email.nextdoor.com>
+  - Message ID: 1990846ccbeae7e6
+  - Subject: Subject: King Honrado Has An Update for You, Tyler Grozenski
+From: LinkedIn <notifications-noreply@linkedin.com>
+  - Message ID: 1990848c5b6de16b
+  - Subject: Subject: re: Invitation to join your Louise Ave neighbors
+From: Nextdoor Louise Nugent <no-reply@is.email.nextdoor.com>
+  - Message ID: 19908677cc065f3e
+  - Subject: Subject: Make your summer count. Save: $50/yr.
+From: The New York Times <nytimes@e.newyorktimes.com>
+  - Message ID: 19909bcd261df604
+  - Subject: Subject: Two more days for 75% off.
+From: New York Times Games <nytimes@e.newyorktimes.com>
+  - Message ID: 1990a0873951023c
+  - Subject: Subject: Adventures with Beautiful Views Await 🌄
+From: "Recreation.gov" <AdventureAwaits@recreation.gov>
+  - Message ID: 1990a1d83be2e1af
+  - Subject: Subject: Ring, ring. PSL is calling ☎️
+From: Starbucks <Starbucks@e.starbucks.com>
+  - Message ID: 1990a62f211c5c37
+  - Subject: Subject: Missing Financial Aid Requirements
+From: sfs_do_not_reply@northeastern.edu
+  - Message ID: 1990aaad3aaafd0d
+  - Subject: Subject: Application Update - Wurl
+From: noreply.hiring@applovin.com
+  - Message ID: 1990aae7dcac9f2c
+  - Subject: Subject: Jenna Lyons — in Cashmere
+From: Aritzia <aritzia@em.aritzia.com>
+  - Message ID: 1990abaad6f32534
