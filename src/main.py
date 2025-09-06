@@ -1,5 +1,4 @@
 import os
-import json
 from db_manager import DBManager
 from fastapi.middleware.cors import CORSMiddleware
 from google.oauth2 import id_token
@@ -69,7 +68,7 @@ async def webhook(request: Request):
         return JSONResponse(content={"response": response})
 
     except Exception as e:
-        return JSONResponse(content={"error": "An internal server error occurred."}, status_code=500)
+        return JSONResponse(content={"error": f"An internal server error occurred. error: {e}"}, status_code=500)
 
 
 """
@@ -112,6 +111,37 @@ async def recieve_auth_code(request: Request):
 
     return {"message": f"User {user_email} successfully registered."}
 
+@app.post("/saveDocument")
+async def save_document(request: Request):
+    """
+    Recieves a document from the frontend to be saved in the DB for RAG
+    """
+    try:
+        data = await request.json()
+
+        user_email = data.get("email")
+        doc_name = data.get("doc_name")
+        text_content = data.get("text_content")
+        user_id = db_manager.get_attribute(
+            attribute="user_id",
+            user_email=user_email
+        )
+
+        flag = db_manager.insert_document(
+            user_id=user_id,
+            doc_name=doc_name,
+            text_content=text_content
+        )
+
+        if flag:
+            return JSONResponse(content={"success": f"Content Saved"}, status_code=200)
+    except Exception as e:
+        if isinstance(e, ValueError):
+            return JSONResponse(content={"Error": f"Document is Too Long, error: {e}"}, status_code=400)
+        else:
+            return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
+
+    return JSONResponse(content={"Error": f"Internal Server Error"}, status_code=500)
 
 """
 An endpoint that is subscribed to the pub/sub topic

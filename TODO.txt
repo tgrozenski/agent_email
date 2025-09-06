@@ -3,14 +3,10 @@ clientID -> 523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent
 Thin Client Architecture
 https://developers.google.com/oauthplayground/ - for stepping throught the oAuth process
 
-- Refactor db_manager to use google cloud sql for posgres
-    - Remove pooling (no longer necessary)
-- Configure db on google cloud console (google cloud sql for postgres)
-- configure pgvector compatibility
+- Configure pgvector compatibility for Aiven
+https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
-- Add new document in db_manager (handles creation of embedding_vector)
 - Build dashboard page for documents to be added to knowledge base
-- Implement RAG with pgvector
 - Configure pub sub endpoint
 - Set pub sub up in google console
 
