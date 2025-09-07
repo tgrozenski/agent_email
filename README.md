@@ -1,31 +1,77 @@
-# Agent-Assisted Email Architecture
+# Agent Email: Semantic Knowledge Base
 
-This document outlines the architecture for an email processing agent that automatically drafts responses to incoming emails.
+This project is a Python-based backend service that provides a personal knowledge base for users. It allows users to store documents and then search through them based on conceptual meaning rather than just keywords.
 
-The system uses a secure, multi-user architecture built on Google Cloud. It separates the client-side authentication flow from the event-driven email processing flow.
+The core of this application is a Retrieval-Augmented Generation (RAG) system that uses vector embeddings to find the most relevant documents for a user's query, which can then be used to assist in tasks like drafting intelligent email responses.
 
-## Components
+## Core Methodology: Retrieval-Augmented Generation (RAG)
 
-1.  **Frontend Application**
-    *   **Responsibility:** Handles all user-facing interaction for the one-time OAuth 2.0 consent flow.
-    *   **Function:** It initiates the Google Sign-In process and receives a temporary authorization code from Google upon user consent. It immediately sends this code to the backend's `/register` endpoint. **Crucially, it never handles sensitive tokens.**
+This application leverages the power of vector search to create a semantic knowledge base. The process is as follows:
 
-2.  **Backend Application (FastAPI)**
-    *   **Responsibility:** The secure, trusted core of the system. It is the only component that interacts with the database and Secret Manager.
-    *   **Endpoints:**
-        *   `/register`: A secure endpoint that receives the authorization code, exchanges it for a refresh token, and orchestrates storing the user's credentials and data.
-        *   `/pubSub`: A secure endpoint that serves as the target for the Pub/Sub push subscription. This is the main email processing logic invoked by new messages.
+1.  **Document Ingestion & Embedding**: When a user saves a document, the text content and its title are combined. A machine learning model then converts this text into a 384-dimension numerical vector (an "embedding"). This vector represents the document's semantic meaning.
+2.  **Storage**: The original text and its corresponding vector embedding are stored in a PostgreSQL database, linked to the user's ID.
+3.  **Semantic Search**: When a user submits a search query, that query is also converted into a 384-dimension vector.
+4.  **Similarity Search**: The system uses a **cosine similarity** search to compare the query's vector against all the document vectors for that user. The database then returns the "top-k" most similar documents—those whose meaning is closest to the user's query.
 
-3.  **Google Cloud SQL for PostgreSQL**
-    *   **Responsibility:** A unified, single database system for all application data, including user metadata and the user-specific knowledge base.
-    *   **Function:**
-        *   **User Metadata:** Acts as the central directory for mapping incoming emails to the correct user. It stores information like the user's Google ID, email address, and the resource name of their corresponding secret in Secret Manager. It **does not** store the actual OAuth tokens.
-        *   **Knowledge Base:** Stores each user's knowledge base documents. It leverages PostgreSQL's advanced features like the `JSONB` data type for storing semi-structured documents and Full-Text Search for efficient, intelligent searching of the document content. This consolidation simplifies the architecture by avoiding the need for a separate document database.
+## Technologies Used
 
-4.  **Google Cloud Pub/Sub**
-    *   **Responsibility:** A real-time messaging service that decouples the Gmail API from the Backend Application.
-    *   **Function:** It receives push notifications from the Gmail API when a new email arrives. It uses a **Push Subscription** to forward these notifications immediately to the backend's `/pubSub` endpoint, triggering the processing logic in real-time.
+- **Backend**: Python with the **FastAPI** framework for creating a fast, modern API.
+- **Database**: **PostgreSQL** hosted on Aiven.
+- **Vector Search**: The **`pgvector`** extension for PostgreSQL, which enables storing and searching vector embeddings efficiently.
+- **Vector Embeddings**: The **`FastEmbed`** library, a lightweight and CPU-optimized library for generating high-quality text embeddings using the `BAAI/bge-small-en-v1.5` model (384 dimensions).
+- **Database Driver**: `pg8000` for connecting the Python application to the PostgreSQL database.
+- **Authentication**: Google OAuth 2.0 for secure, user-consented access to Gmail APIs.
 
-5.  **Google Gmail API**
-    *   **Responsibility:** The primary interface for interacting with the user's mailbox.
-    *   **Function:** It provides the OAuth 2.0 infrastructure, allows the backend to fetch email content, create drafts, and sends push notifications to Pub/Sub. All interactions are initiated by the trusted backend.
+## API Endpoints
+
+### `GET /`
+- **Purpose**: A simple health-check endpoint.
+- **Returns**: A JSON message indicating that the service is running.
+
+### `POST /register`
+- **Purpose**: Handles the one-time user registration and Google OAuth 2.0 flow.
+- **Process**:
+    1. Receives a temporary authorization code from the frontend after the user grants consent.
+    2. Securely exchanges this code for a long-lived **refresh token** and an initial access token.
+    3. Verifies the user's identity from the token.
+    4. Fetches the user's initial Gmail `historyId` to mark a starting point for email processing.
+    5. Stores the user's name, email, encrypted refresh token, and initial `historyId` in the `users` table.
+- **Returns**: A success message upon successful registration.
+
+### `POST /saveDocument`
+- **Purpose**: Ingests and saves a new document into a user's knowledge base.
+- **Request Body**:
+    ```json
+    {
+        "email": "user@example.com",
+        "doc_name": "My Document Title",
+        "text_content": "The full text content of the document goes here."
+    }
+    ```
+- **Process**:
+    1. Validates the total length of the document (enforced server-side).
+    2. Generates a 384-dimension vector embedding from the combined title and content.
+    3. Stores the document's name, content, and vector embedding in the `documents` table, linked to the user's ID.
+- **Returns**: A success or error JSON response.
+
+### `POST /processEmail`
+- **Purpose**: The main webhook endpoint intended to be triggered by Google Pub/Sub when a new email arrives for a user.
+- **Process (Intended Logic)**:
+    1. Receives a notification containing the user's email address.
+    2. Fetches the user's refresh token and last known `historyId` from the database.
+    3. Generates a short-lived access token to interact with the Gmail API.
+    4. Fetches all new emails since the last `historyId`.
+    5. For each email, it performs a semantic search against the user's knowledge base to find relevant documents.
+    6. Uses the Gemini API, providing the email content and the retrieved documents as context, to generate a draft reply.
+    7. Saves the AI-generated response as a draft in the user's Gmail account.
+    8. Updates the user's `historyId` in the database to ensure emails are not processed more than once.
+
+### `POST /webhook`
+- **Purpose**: A general-purpose endpoint for testing the Gemini API.
+- **Request Body**:
+    ```json
+    {
+        "prompt": "Your text prompt for the AI model."
+    }
+    ```
+- **Returns**: The raw text response from the Gemini model.
