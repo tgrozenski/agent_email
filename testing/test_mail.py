@@ -6,7 +6,8 @@ import base64
 
 # Add project root to path
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-from src.mail import Email, get_unprocessed_emails, publish_draft, is_likely_unimportant
+from src.mail import *
+
 from src.db_manager import DBManager
 
 from google.auth.transport.requests import Request
@@ -17,6 +18,7 @@ from googleapiclient.errors import HttpError
 
 # The scopes needed for the operations in mail.py
 SCOPES = ["https://mail.google.com/"]
+
 
 class TestMailIntegration(unittest.TestCase):
     """
@@ -201,6 +203,103 @@ class TestMailIntegration(unittest.TestCase):
         for message_id in promo_emails:
             email: Email = self.get_email_by_id(message_id)
             self.assertTrue(is_likely_unimportant(email))
+    
+    def test_get_ai_draft(self):
+        # Leaving sample data to be used by the following test functions
+        sample_email = Email(
+            headers=[{'name': 'Subject', 'value': 'Meeting Reminder'}, {'name': 'From', 'value': 'Bob'}, {'name': 'To', 'value': 'Alice'}],
+            body="What is the combination to the bike lock again? I have forgotten.",
+            messageID="NA",
+            historyID="NA"
+        )
+        sample_context: list[dict] = [
+            {'name': 'Pets I love', 'content': 'I love my cat named Whiskers. She is very playful and loves to chase laser pointers.'},
+            {'name': 'Band Names', 'content': 'A good band name is The Rolling Codes. They play rock music. Come see them live!'},
+            {'name': 'Bike Lock Combinations', 'content': 'The combination to the bike lock is 15-23-8.'}
+        ]
+
+        prompt = template_prompt(sample_email, sample_context)
+        self.assertIsNotNone(prompt)
+
+        db_manager = DBManager()
+        conn = db_manager.getcon()
+        cur = conn.cursor()
+        cur.execute(
+            "INSERT INTO users" \
+            "(email, name, history_id, encrypted_refresh_token)" \
+            "VALUES ('testuser@example.com', 'Test User', 'history123', 'encryptedtoken123')" \
+            "ON CONFLICT (email) DO NOTHING;"
+        )
+
+        user_id = self.db_manager.get_attribute("testuser@example.com", "user_id")
+        self.db_manager.insert_document(user_id, "Pets I love", 'I love my cat named Whiskers. She is very playful and loves to chase laser pointers.')
+        self.db_manager.insert_document(user_id, 'Band Names', 'A good band name is The Rolling Codes. They play rock music. Come see them live!')
+        self.db_manager.insert_document(user_id, 'Bike Lock Combinations', 'The combination to the bike lock is 15-23-8.')
+
+        user_id = db_manager.get_attribute(user_email="testuser@example.com", attribute="user_id")
+        draft = get_ai_draft(
+            user_id=user_id,
+            email=sample_email,
+            client=genai.Client(api_key=os.environ["GEMINI_AGENT_EMAIL"]),
+            db_manager_instance=db_manager,
+            context_window=3
+        )
+
+        self.assertIsNotNone(draft)
+        print(draft)
+        self.cur.close()
+
+    def test_get_ai_draft_2(self):
+        """
+        Tests the full RAG pipeline with a real call to the Gemini API.
+        It inserts a document with a unique fact, asks a question about it,
+        and asserts that the AI's response contains that unique fact.
+        """
+        # ARRANGE
+        try:
+            client = genai.Client(api_key=os.environ["GEMINI_AGENT_EMAIL"])
+        except Exception as e:
+            self.fail(f"Failed to initialize Gemini client. Ensure GEMINI_AGENT_EMAIL is set. Error: {e}")
+
+        user_email = "real_rag_test@example.com"
+        self.db_manager.insert_new_user("Real RAG User", user_email, "token", "hist")
+        
+        # Use the connection from the test class instance for querying
+        self.cur = self.db_manager.mypool.connect().cursor()
+        self.cur.execute("SELECT user_id FROM users WHERE email = %s;", (user_email,))
+        user_id = self.cur.fetchone()[0]
+
+        doc_name = "Project Nebula Secret Codes"
+        unique_fact = "The secret activation code for Project Nebula is 'Xylophone-Zebra-7'."
+        self.db_manager.insert_document(user_id, doc_name, unique_fact)
+
+        # 3. Create a mock email asking a question only answerable by the document
+        mock_email = Email(
+            headers=[{'name': 'Subject', 'value': 'Urgent: Nebula Code Request'}],
+            body="I need the activation code for Project Nebula immediately.",
+            messageID="test_real_rag_msg_id",
+            historyID="hist_real_rag_id"
+        )
+
+        # ACT
+        ai_response = get_ai_draft(
+            user_id=user_id,
+            email=mock_email,
+            client=client,
+            db_manager_instance=self.db_manager
+        )
+
+        # ASSERT
+        self.assertIsNotNone(ai_response, "The AI response should not be None.")
+        print(f"\nAI Response for Real RAG Test: {ai_response}\n")
+        self.assertIn("Xylophone-Zebra-7", ai_response, "The AI response did not contain the unique fact from the RAG document.")
+
+        # CLEANUP
+        self.cur.execute("DELETE FROM documents WHERE user_id = %s;", (user_id,))
+        self.cur.execute("DELETE FROM users WHERE user_id = %s;", (user_id,))
+        self.cur.connection.commit()
+        self.cur.close()
+
 
 if __name__ == "__main__":
     unittest.main()

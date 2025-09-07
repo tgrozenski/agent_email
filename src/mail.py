@@ -3,6 +3,12 @@ from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 import base64
 from email.message import EmailMessage
+from google import genai
+import sys, os
+
+sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+
+from src.db_manager import DBManager
 
 @dataclass(frozen=True)
 class Email:
@@ -148,15 +154,39 @@ def is_likely_unimportant(email: Email) -> bool:
 
     return False
 
-
-def get_ai_draft(email: Email) -> str:
+def get_ai_draft(
+    user_id: str,
+    email: Email,
+    client: genai.Client,
+    db_manager_instance: DBManager,
+    context_window: int = 3 # num of documents to use as context
+    ) -> str:
     """
     Get a response draft from Gemini AI based on the email content.
     Assumes email is 'important' i.e. not greymail and needs a response.
     """
-    # convert email into vector embedding for semantic matching with pgvector
-    # retrieve relevant documents from psql db using pgvector
-    # call Gemini API with relevant context retrieved from db + email body to generate draft
-    # Potentially use streaming to improve percieved performance
-    # return a string that is the draft reply
-    return "Hello world this is a test reply from gemini"
+    context: list[dict] = db_manager_instance.get_top_k_results(
+        query=next((h['value'] for h in email.headers if h['name'].lower() == 'subject'), '' ) + email.body,
+        k=context_window,
+        user_id=user_id
+    )
+
+    return client.models.generate_content(
+        model="gemini-2.0-flash",
+        contents=template_prompt(email, context),
+    ).text
+
+def template_prompt(email: Email, context: list[dict]) -> str:
+    """
+    A simple prompt template to get a response from Gemini AI.
+    """
+    if not context:
+        context = [{"name": "None found.", "content": "Make your best attempt to answer based on the email alone."}]
+
+    prompt = "The following documents to inform your response, read and understand:\n"
+    prompt += "\n\n".join([f"Document Name: {doc['name']}\nContent: {doc['content']}" for doc in context]) + "\n\n"
+    prompt += f"You are an effective and knowledgable at answering. Please draft a professional and concise reply to the following email:\n\n"
+    prompt += f"Email Subject: {next((h['value'] for h in email.headers if h['name'].lower() == 'subject'), '')}\n"
+    prompt += f"Email Body: {email.body}\n\n"
+
+    return prompt
