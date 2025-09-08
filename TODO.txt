@@ -7,8 +7,22 @@ https://developers.google.com/oauthplayground/ - for stepping throught the oAuth
 https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
 - Build dashboard page for documents to be added to knowledge base
-- Configure pub sub endpoint
+  - enforce the 2000 char limit
+  - make it somewhat nice to look at
+  - tailwinds css and js
+  - transaction style logic OLTP
+
+- Integrate AUTH using JWT
+  - a token with a user_id and an encrypted signature to checked by backend
+
+- Consider holding tokens and user_id in frontend
+
+- Write the pub sub endpoint, recieves email to draft a response
+
+- Dockerize the backend, test the cointainer
+
 - Set pub sub up in google console
+https://developers.google.com/workspace/gmail/api/guides/push
 
 
 Found 20 new email(s).
