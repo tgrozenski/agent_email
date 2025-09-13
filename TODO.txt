@@ -6,20 +6,21 @@ https://developers.google.com/oauthplayground/ - for stepping throught the oAuth
 - Configure pgvector compatibility for Aiven
 https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
-- Build dashboard page for documents to be added to knowledge base
+- Document viewer
+  - improve performance, only display clickable titles
+  - create a document view and edit page
   - enforce the 2000 char limit
-  - make it somewhat nice to look at
-  - tailwinds css and js
-  - transaction style logic OLTP
+  - transaction style logic (all or nothing database actions)
 
-- Integrate AUTH using JWT
-  - a token with a user_id and an encrypted signature to checked by backend
+- refactor /register endpoint, really more of a login endpoint register if new
 
-- Consider holding tokens and user_id in frontend
+- simulate a pub sub event with curl, ensure all else is working
+
+- Dockerize the backend, test with the cointainer
+
+- deploy to GCP, perform end to end tests
 
 - Write the pub sub endpoint, recieves email to draft a response
-
-- Dockerize the backend, test the cointainer
 
 - Set pub sub up in google console
 https://developers.google.com/workspace/gmail/api/guides/push

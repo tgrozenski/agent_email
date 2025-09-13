@@ -130,6 +130,29 @@ class DBManager:
                 conn.close()
         
         return True
+    
+    def get_documents(self, user_id: str) -> list[dict] | None:
+        conn = None
+        try:
+            conn = self.mypool.connect()
+            cur = conn.cursor()
+            cur.execute(
+                'SELECT doc_id, document_name, content FROM documents WHERE user_id = %s;',
+                (user_id,)
+            )
+            results = cur.fetchall()
+            documents = []
+            for row in results:
+                documents.append({
+                    "id": row[0],
+                    "name": row[1],
+                    "content": row[2]
+                })
+            return documents
+        except Exception as e:
+            print("Database operation failed in get_documents.")
+            print(e)
+            return None
 
     def get_top_k_results(self, query: str, k: int, user_id: str) -> list[dict] | None:
         """

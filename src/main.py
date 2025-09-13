@@ -83,7 +83,7 @@ async def recieve_auth_code(request: Request):
 
     try:
         idinfo = id_token.verify_oauth2_token(
-            token['id_token'], requests.Request(), WEB_CLIENT_ID
+            token['id_token'], requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
         )
         
         user_name = idinfo.get('name', 'N\A')
@@ -125,7 +125,7 @@ async def get_documents(request: Request):
             # The token is expected to be in the format "Bearer <token>"
             id_token_value = auth_header.split(" ")[1]
             idinfo = id_token.verify_oauth2_token(
-                id_token_value, requests.Request(), WEB_CLIENT_ID
+                id_token_value, requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
             )
             user_email = idinfo.get('email')
         except Exception as e:
@@ -135,11 +135,11 @@ async def get_documents(request: Request):
             attribute="user_id",
             user_email=user_email
         )
-
         documents = db_manager.get_documents(user_id=user_id)
 
         return JSONResponse(content={"documents": documents}, status_code=200)
     except Exception as e:
+        print("Error getting documents: ", e)
         return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
 
 @app.post("/saveDocument")
@@ -156,7 +156,7 @@ async def save_document(request: Request):
             # The token is expected to be in the format "Bearer <token>"
             id_token_value = auth_header.split(" ")[1]
             idinfo = id_token.verify_oauth2_token(
-                id_token_value, requests.Request(), WEB_CLIENT_ID
+                id_token_value, requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
             )
             user_email = idinfo.get('email')
         except Exception as e:
