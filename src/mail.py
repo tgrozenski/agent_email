@@ -12,7 +12,7 @@ from src.db_manager import DBManager
 
 @dataclass(frozen=True)
 class Email:
-    headers : [dict]
+    headers : list[dict]
     body : str
     messageID : str
     historyID : str

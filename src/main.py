@@ -109,7 +109,38 @@ async def recieve_auth_code(request: Request):
         print(f"Token verification failed: {e}")
         return JSONResponse(content={"error": f"Token verification failed. {e}"}, status_code=400)
 
-    return {"message": f"User {user_email} successfully registered."}
+    return {"message": f"User {user_email} successfully registered.", "id_token": token['id_token']}
+
+@app.get("/getDocuments")
+async def get_documents(request: Request):
+    """
+    Recieves a user email from the frontend to get all documents associated with that user
+    """
+    try:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return JSONResponse(content={"error": "Authorization header missing"}, status_code=401)
+
+        try:
+            # The token is expected to be in the format "Bearer <token>"
+            id_token_value = auth_header.split(" ")[1]
+            idinfo = id_token.verify_oauth2_token(
+                id_token_value, requests.Request(), WEB_CLIENT_ID
+            )
+            user_email = idinfo.get('email')
+        except Exception as e:
+            return JSONResponse(content={"error": f"Invalid token: {e}"}, status_code=401)
+
+        user_id = db_manager.get_attribute(
+            attribute="user_id",
+            user_email=user_email
+        )
+
+        documents = db_manager.get_documents(user_id=user_id)
+
+        return JSONResponse(content={"documents": documents}, status_code=200)
+    except Exception as e:
+        return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
 
 @app.post("/saveDocument")
 async def save_document(request: Request):
@@ -117,9 +148,21 @@ async def save_document(request: Request):
     Recieves a document from the frontend to be saved in the DB for RAG
     """
     try:
-        data = await request.json()
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return JSONResponse(content={"error": "Authorization header missing"}, status_code=401)
 
-        user_email = data.get("email")
+        try:
+            # The token is expected to be in the format "Bearer <token>"
+            id_token_value = auth_header.split(" ")[1]
+            idinfo = id_token.verify_oauth2_token(
+                id_token_value, requests.Request(), WEB_CLIENT_ID
+            )
+            user_email = idinfo.get('email')
+        except Exception as e:
+            return JSONResponse(content={"error": f"Invalid token: {e}"}, status_code=401)
+
+        data = await request.json()
         doc_name = data.get("doc_name")
         text_content = data.get("text_content")
         user_id = db_manager.get_attribute(

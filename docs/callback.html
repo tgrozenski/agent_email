@@ -8,28 +8,52 @@
 </head>
 <body class="bg-gray-100 flex items-center justify-center h-screen">
     <div class="text-center">
-        <h1 class="text-5xl font-bold text-gray-800 mb-8">CallBack Page</h1>
+        <h1 class="text-5xl font-bold text-gray-800 mb-8">Authentication Successful</h1>
+        <p id="status" class="text-gray-600 mb-8">Please wait, saving your session...</p>
+        <a id="dynamic-link" href="documents.html" class="inline-block bg-blue-500
+            hover:bg-blue-700 text-white font-bold py-4 px-8 rounded-full
+            shadow-lg transform transition-transform duration-200
+            hover:scale-105 text-center" style="display: none;">
+            View Documents
+        </a>
     </div>
-</body>
     <script>
-        const urlParams = new URLSearchParams(window.location.search);
-        const code = urlParams.get('code');
-        const endpoint = "http://localhost:8000/register" // Change this after testing
-        if (code) {
-            console.log("Here is the code", code)
-            json = {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        code: code
-                    })
+        (async () => {
+            const dynamicLink = document.getElementById('dynamic-link');
+            const statusElement = document.getElementById('status');
+
+            const urlParams = new URLSearchParams(window.location.search);
+            const code = urlParams.get('code');
+            const endpoint = "http://localhost:8000/register";
+
+            if (code) {
+                try {
+                    const response = await fetch(endpoint, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ code: code })
+                    });
+
+                    const data = await response.json();
+
+                    if (data.id_token) {
+                        // Securely store the token
+                        sessionStorage.setItem('google_id_token', data.id_token);
+
+                        // Update UI to show success and reveal the link
+                        statusElement.textContent = "You are now logged in. You can view your documents.";
+                        dynamicLink.style.display = 'inline-block';
+                    } else {
+                        statusElement.textContent = "Authentication failed. Please try again.";
+                        console.error("Failed to get id_token from server:", data);
+                    }
+                } catch (error) {
+                    statusElement.textContent = "An error occurred during login.";
+                    console.error('Error:', error);
+                }
+            } else {
+                statusElement.textContent = "No authorization code found. Please return to the login page.";
             }
-            fetch(endpoint, json)
-                .then(response => response.json())
-                .then(data => console.log(data))
-                .catch(error => console.error('Error:', error));
-        }
+        })();
     </script>
-</html>
+</body>
