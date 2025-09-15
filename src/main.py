@@ -37,7 +37,6 @@ app.add_middleware(
     allow_headers=["*"], # Allows all headers
 )
 
-
 def get_text_content(prompt: str) -> str:
     """Generates text content using the Gemini model."""
     response = client.models.generate_content(
@@ -149,6 +148,7 @@ async def get_documents(request: Request):
 async def save_document(request: Request):
     """
     Recieves a document from the frontend to be saved in the DB for RAG
+    Note: passing a doc_id will update an existing document instead of creating a new one
     """
     try:
         auth_header = request.headers.get('Authorization')
@@ -168,6 +168,8 @@ async def save_document(request: Request):
         data = await request.json()
         doc_name = data.get("doc_name")
         text_content = data.get("text_content")
+        doc_id = data.get("doc_id", None) # optional, for updating existing document
+
         user_id = db_manager.get_attribute(
             attribute="user_id",
             user_email=user_email
@@ -176,7 +178,8 @@ async def save_document(request: Request):
         flag = db_manager.insert_document(
             user_id=user_id,
             doc_name=doc_name,
-            text_content=text_content
+            text_content=text_content,
+            doc_id=doc_id
         )
 
         if flag:
@@ -202,28 +205,47 @@ async def get_document_by_id(request: Request, doc_id: str):
         try:
             # The token is expected to be in the format "Bearer <token>"
             id_token_value = auth_header.split(" ")[1]
-            idinfo = id_token.verify_oauth2_token(
+            id_token.verify_oauth2_token( # ensuring token is valid
                 id_token_value, requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
             )
-            user_email = idinfo.get('email')
         except Exception as e:
             return JSONResponse(content={"error": f"Invalid token: {e}"}, status_code=401)
 
-        user_id = db_manager.get_attribute(
-            attribute="user_id",
-            user_email=user_email
-        )
         document = db_manager.get_document_by_id(doc_id=doc_id)
-        print("this is doc:", document)
-
         if document is None:
             return JSONResponse(content={"error": "Document not found or access denied"}, status_code=404)
 
-        print("Document found: ", document)
         return JSONResponse(content={"document": document}, status_code=200)
     except Exception as e:
         print("Error getting document by ID: ", e)
         return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
+    
+@app.delete("/deleteDocument")
+async def delete_document(request: Request, doc_id: str):
+    try:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return JSONResponse(content={"error": "Authorization header missing"}, status_code=401)
+
+        try:
+            id_token_value = auth_header.split(" ")[1]
+            id_token.verify_oauth2_token( # just verifying token is valid
+                id_token_value, requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
+            )
+        except Exception as e:
+            return JSONResponse(content={"error": f"Invalid token: {e}"}, status_code=401)
+
+        success = db_manager.delete_document(doc_id)
+        print("success: ", success, "deleting doc id", doc_id)
+        if not success:
+            return JSONResponse(content={"error": "Document not found or could not be deleted"}, status_code=404)
+
+        return JSONResponse(content={"Success": "Document was deleted"}, status_code=200)
+
+    except Exception as e:
+        print("Error getting document by ID: ", e)
+        return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
+
 
 """
 An endpoint that is subscribed to the pub/sub topic

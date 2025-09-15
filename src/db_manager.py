@@ -97,9 +97,16 @@ class DBManager:
             if conn:
                 conn.close()
     
-    def insert_document(self, user_id: str, doc_name: str, text_content: str) -> bool:
+    def insert_document(
+            self,
+            user_id: str,
+            doc_name: str,
+            text_content: str,
+            doc_id: str = None
+        ) -> bool:
         """
         Insert a given document into the database, generates a embedding for RAG to insert.
+        If doc_id is provided, it will alter the existing document instead of creating a new one.
         """
 
         # Enforce document limits server-side
@@ -114,12 +121,18 @@ class DBManager:
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
-            cur.execute(
-                'INSERT INTO documents' \
-                '(user_id, document_name, embedding, content)' \
-                'VALUES (%s, %s, %s, %s);',
-                (user_id, doc_name, str(embedding.tolist()), text_content)
-            )
+            if doc_id: # update existing
+                cur.execute(
+                    'UPDATE documents SET embedding = %s, content = %s WHERE doc_id = %s;',
+                    (str(embedding.tolist()), text_content, doc_id)
+                )
+            else: # new 
+                cur.execute(
+                    'INSERT INTO documents' \
+                    '(user_id, document_name, embedding, content)' \
+                    'VALUES (%s, %s, %s, %s);',
+                    (user_id, doc_name, str(embedding.tolist()), text_content)
+                )
             conn.commit()
         except Exception as e:
             print("Database operation failed in insert_document.")
@@ -129,6 +142,22 @@ class DBManager:
             if conn:
                 conn.close()
         
+        return True
+
+    def delete_document(self, doc_id: str) -> bool:
+        conn = None
+        try:
+            conn = self.mypool.connect()
+            cur = conn.cursor()
+            cur.execute(
+                "DELETE FROM documents WHERE doc_id = %s;",
+                (doc_id,)
+            )
+            conn.commit()
+        except Exception as e:
+            print("Database operation failed in delete_document.")
+            print(e)
+            return False
         return True
     
     def get_documents(self, user_id: str, content: bool = True) -> list[dict] | None:

@@ -178,6 +178,24 @@ class TestDBManagerUnit(unittest.TestCase):
         self.assertEqual(len(vehicle_results), 1)
         self.assertIsNotNone(vehicle_results[0])
         self.assertEqual(vehicle_results[0]['content'], "This content is about cars, bikes, and vehicles.")
+
+    def test_delete_documents(self):
+        """Test deleting all documents for a user."""
+        # Arrange
+        self.db_manager.insert_document(user_id="31",
+                                        doc_name="DocToDelete",
+                                        text_content="This document will be deleted.")
+        self.cur.execute("SELECT doc_id FROM documents WHERE document_name = 'DocToDelete';")
+        doc_id = self.cur.fetchone()[0] 
+
+        # Act
+        self.db_manager.delete_document(doc_id)
+
+        # Assert
+        self.cur.execute("SELECT * FROM documents WHERE document_name = 'DocToDelete';")
+        res = self.cur.fetchone()
+        self.assertIsNone(res)
+
     
 if __name__ == "__main__":
     unittest.main()
