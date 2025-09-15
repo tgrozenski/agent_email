@@ -6,11 +6,7 @@ https://developers.google.com/oauthplayground/ - for stepping throught the oAuth
 - Configure pgvector compatibility for Aiven
 https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
-- Document viewer
-  - improve performance, only display clickable titles
-  - create a document view and edit page
-  - enforce the 2000 char limit
-  - transaction style logic (all or nothing database actions)
+- Simple document upload
 
 - refactor /register endpoint, really more of a login endpoint register if new
 
@@ -21,6 +17,11 @@ https://aiven.io/docs/products/postgresql/howto/use-pgvector
 - deploy to GCP, perform end to end tests
 
 - Write the pub sub endpoint, recieves email to draft a response
+
+FUTURE DIRECTIONS:
+- Enforcing 2000 char limit
+- MCP integration via programatically generated XML
+- Create a simple web editor for making changes to documents
 
 - Set pub sub up in google console
 https://developers.google.com/workspace/gmail/api/guides/push

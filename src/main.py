@@ -109,7 +109,10 @@ async def recieve_auth_code(request: Request):
         print(f"Token verification failed: {e}")
         return JSONResponse(content={"error": f"Token verification failed. {e}"}, status_code=400)
 
-    return {"message": f"User {user_email} successfully registered.", "id_token": token['id_token']}
+    return JSONResponse(content = {
+        "message": f"User {user_email} successfully registered.",
+        "id_token": token['id_token']
+        }, status_code=200)
 
 @app.get("/getDocuments")
 async def get_documents(request: Request):
@@ -135,7 +138,7 @@ async def get_documents(request: Request):
             attribute="user_id",
             user_email=user_email
         )
-        documents = db_manager.get_documents(user_id=user_id)
+        documents = db_manager.get_documents(user_id=user_id, content=False)
 
         return JSONResponse(content={"documents": documents}, status_code=200)
     except Exception as e:
@@ -185,6 +188,42 @@ async def save_document(request: Request):
             return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
 
     return JSONResponse(content={"Error": f"Internal Server Error"}, status_code=500)
+
+@app.get("/getDocumentById")
+async def get_document_by_id(request: Request, doc_id: str):
+    """
+    Recieves a document ID from the frontend to get the document content associated with that ID
+    """
+    try:
+        auth_header = request.headers.get('Authorization')
+        if not auth_header:
+            return JSONResponse(content={"error": "Authorization header missing"}, status_code=401)
+
+        try:
+            # The token is expected to be in the format "Bearer <token>"
+            id_token_value = auth_header.split(" ")[1]
+            idinfo = id_token.verify_oauth2_token(
+                id_token_value, requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
+            )
+            user_email = idinfo.get('email')
+        except Exception as e:
+            return JSONResponse(content={"error": f"Invalid token: {e}"}, status_code=401)
+
+        user_id = db_manager.get_attribute(
+            attribute="user_id",
+            user_email=user_email
+        )
+        document = db_manager.get_document_by_id(doc_id=doc_id)
+        print("this is doc:", document)
+
+        if document is None:
+            return JSONResponse(content={"error": "Document not found or access denied"}, status_code=404)
+
+        print("Document found: ", document)
+        return JSONResponse(content={"document": document}, status_code=200)
+    except Exception as e:
+        print("Error getting document by ID: ", e)
+        return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
 
 """
 An endpoint that is subscribed to the pub/sub topic

@@ -131,28 +131,63 @@ class DBManager:
         
         return True
     
-    def get_documents(self, user_id: str) -> list[dict] | None:
+    def get_documents(self, user_id: str, content: bool = True) -> list[dict] | None:
+        """
+        Fetch all documents for a given user_id. Intended for document dashboard view.
+        """
         conn = None
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
             cur.execute(
-                'SELECT doc_id, document_name, content FROM documents WHERE user_id = %s;',
-                (user_id,)
+                f'SELECT doc_id, document_name{", content" if content else ""} FROM documents WHERE user_id = {user_id};'
             )
+
             results = cur.fetchall()
             documents = []
             for row in results:
                 documents.append({
                     "id": row[0],
                     "name": row[1],
-                    "content": row[2]
                 })
+                # include content if requested
+                if content:
+                    documents[-1]["content"] = row[2]
             return documents
         except Exception as e:
             print("Database operation failed in get_documents.")
             print(e)
             return None
+    
+    def get_document_by_id(self, doc_id: str) -> dict | None:
+        """
+        Fetch a single document by its ID. May return None if not found or on error.
+        Intended for document dashboard view.
+        """
+        conn = None
+        try:
+            conn = self.mypool.connect()
+            cur = conn.cursor()
+            cur.execute(
+                'SELECT doc_id, document_name, content FROM documents WHERE doc_id = %s;',
+                (doc_id,)
+            )
+            result = cur.fetchone()
+            if result:
+                return {
+                    "id": result[0],
+                    "name": result[1],
+                    "content": result[2]
+                }
+            else:
+                return None
+        except Exception as e:
+            print("Database operation failed in get_document_by_id.")
+            print(e)
+            return None
+        finally:
+            if conn:
+                conn.close()
 
     def get_top_k_results(self, query: str, k: int, user_id: str) -> list[dict] | None:
         """
