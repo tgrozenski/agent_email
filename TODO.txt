@@ -6,17 +6,8 @@ https://developers.google.com/oauthplayground/ - for stepping throught the oAuth
 - Configure pgvector compatibility for Aiven
 https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
-- refactor and rename /register endpoint, really more of a login endpoint register if new
 
-- improve frontend performance
-  - have the js cache some number of documents at a time. Only display titles but clicking is instant
-  - include a button to load more, n at a time
-
-- refactor CRUD endpoints to use less db ops
-  - several areas are getting using email to get id, either cache in frontend (local storage)
-  - or allow for using email in doc queries
-
-- catch token expired errors, return redirect to index.html
+- Write the pub sub endpoint, recieves email to draft a response
 
 - simulate a pub sub event with curl, ensure all else is working
 
@@ -24,7 +15,12 @@ https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
 - deploy to GCP, perform end to end tests
 
-- Write the pub sub endpoint, recieves email to draft a response
+
+- FUTURE QUALITY OF LIFE FEATURES
+  - catch token expired errors, return redirect to index.html
+  - refactor CRUD endpoints to use less db ops
+    - several areas are getting using email to get id, either cache in frontend (local storage)
+    - or allow for using email in doc queries
 
 FUTURE DIRECTIONS:
 - MCP integration via programatically generated XML

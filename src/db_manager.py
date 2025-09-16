@@ -160,16 +160,18 @@ class DBManager:
             return False
         return True
     
-    def get_documents(self, user_id: str, content: bool = True) -> list[dict] | None:
+    def get_documents(self, user_id: str, limit: int, offset: int, content: bool = True) -> list[dict] | None:
         """
         Fetch all documents for a given user_id. Intended for document dashboard view.
+        Recieves a limit and an offset for pagination.
         """
         conn = None
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
             cur.execute(
-                f'SELECT doc_id, document_name{", content" if content else ""} FROM documents WHERE user_id = {user_id};'
+                f'SELECT doc_id, document_name{", content" if content else ""} FROM documents WHERE user_id = {user_id}' \
+                f' ORDER BY document_name ASC LIMIT {limit} OFFSET { offset };'
             )
 
             results = cur.fetchall()

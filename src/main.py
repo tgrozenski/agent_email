@@ -72,9 +72,8 @@ async def webhook(request: Request):
 
 """
 This is the endpoint to exchange the permission code with token to be used by our API
-Note: requires running frontend and backend simultaneously on localhost
 """
-@app.post("/register")
+@app.post("/login")
 async def recieve_auth_code(request: Request):
 
     # get token
@@ -96,7 +95,7 @@ async def recieve_auth_code(request: Request):
         profile = service.users().getProfile(userId='me').execute()
         initial_history_id = profile.get('historyId')
 
-        # insert new credentials into db
+        # insert new credentials into db, if user already exists nothing will be done
         db_manager.insert_new_user(
             name=user_name,
             user_email=user_email,
@@ -114,7 +113,7 @@ async def recieve_auth_code(request: Request):
         }, status_code=200)
 
 @app.get("/getDocuments")
-async def get_documents(request: Request):
+async def get_documents(request: Request, offset: int = 0, limit: int = 10):
     """
     Recieves a user email from the frontend to get all documents associated with that user
     """
@@ -137,7 +136,7 @@ async def get_documents(request: Request):
             attribute="user_id",
             user_email=user_email
         )
-        documents = db_manager.get_documents(user_id=user_id, content=False)
+        documents = db_manager.get_documents(user_id=user_id, content=True, offset=offset, limit=limit)
 
         return JSONResponse(content={"documents": documents}, status_code=200)
     except Exception as e:
