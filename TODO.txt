@@ -6,7 +6,6 @@ https://developers.google.com/oauthplayground/ - for stepping throught the oAuth
 - Configure pgvector compatibility for Aiven
 https://aiven.io/docs/products/postgresql/howto/use-pgvector
 
-
 - Write the pub sub endpoint, recieves email to draft a response
 
 - simulate a pub sub event with curl, ensure all else is working

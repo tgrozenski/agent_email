@@ -1,5 +1,5 @@
-import os
 from db_manager import DBManager
+import base64, json, os
 from fastapi.middleware.cors import CORSMiddleware
 from google.oauth2 import id_token
 from google.oauth2.credentials import Credentials
@@ -12,6 +12,7 @@ from fastapi.responses import JSONResponse
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
 from CredentialsManager import CredentialsManager
+from mail import *
 
 WEB_CLIENT_ID = "592589126466-flt6lvus63683vern3igrska7sllq2s9.apps.googleusercontent.com"
 AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
@@ -44,30 +45,6 @@ def get_text_content(prompt: str) -> str:
         contents=prompt,
     )
     return response.text
-
-
-@app.post("/webhook")
-async def webhook(request: Request):
-    """
-    This endpoint receives a POST request with a JSON payload,
-    sends the "prompt" from the payload to the Gemini API,
-    and returns the Gemini API's response.
-    """
-    try:
-        data = await request.json()
-        prompt = data.get("prompt")
-
-        if not prompt:
-            return JSONResponse(content={"error": "Prompt not found in request body"}, status_code=400)
-
-        # Send the prompt to the Gemini API
-        response = get_text_content(prompt)
-
-        # Return the Gemini API's response
-        return JSONResponse(content={"response": response})
-
-    except Exception as e:
-        return JSONResponse(content={"error": f"An internal server error occurred. error: {e}"}, status_code=500)
 
 
 """
@@ -248,7 +225,7 @@ async def delete_document(request: Request, doc_id: str):
 
 """
 An endpoint that is subscribed to the pub/sub topic
-Responsible to
+Responsibilities include:
     - get short lived access token from refresh token (for gmail api)
     - determine emails since last historyID
     - process those emails
@@ -258,34 +235,37 @@ Responsible to
 """
 @app.post("/processEmail")
 async def pub_sub(request: Request):
-    ...
-    # pub_sub_dict = await request.json()
+    pub_sub_dict = await request.json()
+
+    # The data from pub/sub is base64 encoded and contains the user's email
+    message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
+    message_json = json.loads(message_data)
+    user_email = message_json['emailAddress']
+
+    # get refresh token and historyID from db
+    refresh_token = db_manager.get_attribute(user_email, "encrypted_refresh_token")
+    start_history_id = db_manager.get_attribute(user_email, "history_id")
+
+    # use gmail api to get emails since last historyID
+    creds: CredentialsManager = CredentialsManager(refresh_token)
+    access_token = creds.get_access_token(refresh_token)
+    emails: list[Email] = get_unprocessed_emails(access_token, start_history_id)
+
+    if not emails:
+        print("LOG: No new emails to process.")
+
+    for email in emails:
+        if not email.body or is_likely_unimportant(email):
+            continue
+        response_body = get_ai_draft(email)
+        publish_draft(access_token, response_body, email.messageID)
     
-    # # The data from pub/sub is base64 encoded and contains the user's email
-    # message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
-    # message_json = json.loads(message_data)
-    # user_email = message_json['emailAddress']
-
-    # refresh_token = db_manager.get_refresh_token(user_email)
-    # access_token = get_access_token(refresh_token)
-    # start_history_id = db_manager.get_history_id(user_email)
-
-    # emails: list = get_unprocessed_emails(access_token, start_history_id)
-
-    # if not emails:
-    #     return {"message": "No new emails to process."}
-
-    # for email in emails:
-    #     response_body = get_response_body(email)
-    #     publish_draft(access_token, response_body, email.messageID)
-    
-    # # Update the history ID to the latest one from the processed batch
-    # latest_history_id = max(int(email.historyID) for email in emails)
-    # db_manager.update_historyID(user_email, str(latest_history_id))
-
-    # return {"message": f"Successfully processed {len(emails)} emails."}
+    # Update the history ID to the latest one from the processed batch
+    latest_history_id = max(int(email.historyID) for email in emails)
+    db_manager.update_historyID(user_email, str(latest_history_id))
+    print(f"Successfully processed {len(emails)} emails.")
 
 
 @app.get("/")
 def read_root():
-    return {"message": "Webhook is running. Send a POST request to /webhook with a 'prompt' in the JSON body."}
+    return {"message": "Server is running."}
