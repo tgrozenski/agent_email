@@ -10,6 +10,7 @@ class CredentialsManager:
         """
         Builds credentials from either a provided access token or a refresh token.
         """
+        print("this is token", token, " this is refresh token: ", refresh_token)
         if not refresh_token and not token:
             raise ValueError("Either token or refresh_token must be provided")
         # If a token is provided, use it directly
@@ -33,13 +34,16 @@ class CredentialsManager:
                 ]
             )
 
-            self.creds = creds.refresh(Request())
-            
+            creds.refresh(Request())
+            self.creds = creds
+
     def get_access_token(self) -> str:
-        if self.creds and self.creds.expired and self.creds.refresh_token:
+        if not self.creds:
+            raise ValueError("Credentials must be valid")
+        if not self.creds.token:
             self.creds.refresh(Request())
         return self.creds.token
-    
+
     def get_refresh_token(self) -> str:
         return self.creds.refresh_token
 

@@ -60,7 +60,7 @@ async def recieve_auth_code(request: Request):
         idinfo = id_token.verify_oauth2_token(
             token['id_token'], requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
         )
-        
+
         user_name = idinfo.get('name', 'N\A')
         user_email = idinfo.get('email')
         refresh_token = token.get('refresh_token')
@@ -225,7 +225,8 @@ async def delete_document(request: Request, doc_id: str):
 
 """
 An endpoint that is subscribed to the pub/sub topic
-Responsibilities include:
+Recieves a pub sub message from google indicating a change in the user's mailbox
+Must:
     - get short lived access token from refresh token (for gmail api)
     - determine emails since last historyID
     - process those emails
@@ -233,7 +234,7 @@ Responsibilities include:
     - write draft with gmail api
     - update last historyID in DB
 """
-@app.post("/processEmail")
+@app.post("/processEmails")
 async def pub_sub(request: Request):
     pub_sub_dict = await request.json()
 
@@ -247,9 +248,8 @@ async def pub_sub(request: Request):
     start_history_id = db_manager.get_attribute(user_email, "history_id")
 
     # use gmail api to get emails since last historyID
-    creds: CredentialsManager = CredentialsManager(refresh_token)
-    access_token = creds.get_access_token(refresh_token)
-    emails: list[Email] = get_unprocessed_emails(access_token, start_history_id)
+    creds_manager: CredentialsManager = CredentialsManager(refresh_token=refresh_token)
+    emails: list[Email] = get_unprocessed_emails(creds_manager.creds, start_history_id)
 
     if not emails:
         print("LOG: No new emails to process.")
@@ -258,12 +258,16 @@ async def pub_sub(request: Request):
         if not email.body or is_likely_unimportant(email):
             continue
         response_body = get_ai_draft(email)
-        publish_draft(access_token, response_body, email.messageID)
-    
+        publish_draft(creds_manager.creds, response_body, email.messageID)
+
     # Update the history ID to the latest one from the processed batch
-    latest_history_id = max(int(email.historyID) for email in emails)
-    db_manager.update_historyID(user_email, str(latest_history_id))
+    if emails:
+        latest_history_id = max(int(email.historyID) for email in emails)
+        db_manager.update_historyID(user_email, str(latest_history_id))
     print(f"Successfully processed {len(emails)} emails.")
+
+    # As per google documentation we must return a 200 ack
+    return JSONResponse(content={}, status_code=200)
 
 
 @app.get("/")

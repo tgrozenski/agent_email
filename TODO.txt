@@ -1,16 +1,10 @@
-clientID -> 523377850295-uo7l08pumbm3h53n8r4o12ilc0jvhnck.apps.googleusercontent.com
-
-Thin Client Architecture
-https://developers.google.com/oauthplayground/ - for stepping throught the oAuth process
-
-- Configure pgvector compatibility for Aiven
-https://aiven.io/docs/products/postgresql/howto/use-pgvector
-
-- Write the pub sub endpoint, recieves email to draft a response
+TODO
 
 - simulate a pub sub event with curl, ensure all else is working
 
-- Dockerize the backend, test with the cointainer
+- implement some sort of exponential backoff algorithm for retrying when model is overloaded
+
+- Dockerize the backend, test with the container
 
 - deploy to GCP, perform end to end tests
 

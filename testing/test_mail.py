@@ -43,7 +43,7 @@ class TestMailIntegration(unittest.TestCase):
             if cls.creds and cls.creds.expired and cls.creds.refresh_token:
                 cls.creds.refresh(Request())
             else:
-                secrets_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'AgentEmailWebClientSecrets.json')
+                secrets_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'test_client_secrets.json')
                 if not os.path.exists(secrets_file):
                     secrets_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'credentials.json')
                 
@@ -247,7 +247,7 @@ class TestMailIntegration(unittest.TestCase):
 
         self.assertIsNotNone(draft)
         print(draft)
-        self.cur.close()
+        cur.close()
 
     def test_get_ai_draft_2(self):
         """
@@ -270,7 +270,7 @@ class TestMailIntegration(unittest.TestCase):
         user_id = self.cur.fetchone()[0]
 
         doc_name = "Project Nebula Secret Codes"
-        unique_fact = "The secret activation code for Project Nebula is 'Xylophone-Zebra-7'."
+        unique_fact = "The public activation code for Project Nebula is 'Xylophone-Zebra-7'."
         self.db_manager.insert_document(user_id, doc_name, unique_fact)
 
         # 3. Create a mock email asking a question only answerable by the document

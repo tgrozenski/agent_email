@@ -96,7 +96,7 @@ class DBManager:
         finally:
             if conn:
                 conn.close()
-    
+
     def insert_document(
             self,
             user_id: str,

@@ -1,0 +1,11 @@
+fastapi[standard]
+uvicorn
+google-api-python-client
+google-auth-oauthlib
+google-auth-httplib2
+google-genai
+google-generativeai
+SQLAlchemy
+pg8000
+fastembed
+python-dotenv
