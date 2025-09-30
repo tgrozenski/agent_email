@@ -1,8 +1,6 @@
 TODO
 
-- simulate a pub sub event with curl, ensure all else is working
-
-- implement some sort of exponential backoff algorithm for retrying when model is overloaded
+- Set up pub sub watch subscription for pubsub endpoint
 
 - Dockerize the backend, test with the container
 
@@ -12,8 +10,7 @@ TODO
 - FUTURE QUALITY OF LIFE FEATURES
   - catch token expired errors, return redirect to index.html
   - refactor CRUD endpoints to use less db ops
-    - several areas are getting using email to get id, either cache in frontend (local storage)
-    - or allow for using email in doc queries
+    - several areas are getting using email to get id, refactor to allow querying base on email
 
 FUTURE DIRECTIONS:
 - MCP integration via programatically generated XML

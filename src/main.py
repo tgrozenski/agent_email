@@ -17,35 +17,18 @@ from mail import *
 WEB_CLIENT_ID = "592589126466-flt6lvus63683vern3igrska7sllq2s9.apps.googleusercontent.com"
 AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
 
-# Configure the Gemini client with the API key from environment variables
 client = genai.Client(api_key=os.environ["GEMINI_AGENT_EMAIL"])
 db_manager = DBManager()
-
-# Create the FastAPI app
 app = FastAPI()
 
-origins = [
-    "https://tgrozenski.github.io",
-    "http://localhost",
-    "http://localhost:8000",
-]
-
+# Allows requests from given origins
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=origins,
+    allow_origins=["https://tgrozenski.github.io"],
     allow_credentials=True,
     allow_methods=["*"], # Allows all methods
     allow_headers=["*"], # Allows all headers
 )
-
-def get_text_content(prompt: str) -> str:
-    """Generates text content using the Gemini model."""
-    response = client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=prompt,
-    )
-    return response.text
-
 
 """
 This is the endpoint to exchange the permission code with token to be used by our API
@@ -195,7 +178,7 @@ async def get_document_by_id(request: Request, doc_id: str):
     except Exception as e:
         print("Error getting document by ID: ", e)
         return JSONResponse(content={"Error": f"Internal Server Error {e}"}, status_code=500)
-    
+
 @app.delete("/deleteDocument")
 async def delete_document(request: Request, doc_id: str):
     try:
@@ -266,7 +249,6 @@ async def pub_sub(request: Request):
             continue
 
         user_id = db_manager.get_attribute(user_email, "user_id"),
-        print("This is user id:", user_id)
         response_body = get_ai_draft(
             user_id,
             email,
@@ -284,8 +266,3 @@ async def pub_sub(request: Request):
 
     # As per google documentation we must return a 200 ack
     return JSONResponse(content={}, status_code=200)
-
-
-@app.get("/")
-def read_root():
-    return {"message": "Server is running."}
