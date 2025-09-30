@@ -245,11 +245,18 @@ async def pub_sub(request: Request):
 
     # get refresh token and historyID from db
     refresh_token = db_manager.get_attribute(user_email, "encrypted_refresh_token")
+    print("LOG\n\n\ngot encrypted refresh token: ", refresh_token)
+    print("LOG\n\n\ngot user_email: ", user_email)
+
     start_history_id = db_manager.get_attribute(user_email, "history_id")
 
     # use gmail api to get emails since last historyID
     creds_manager: CredentialsManager = CredentialsManager(refresh_token=refresh_token)
     emails: list[Email] = get_unprocessed_emails(creds_manager.creds, start_history_id)
+    
+    print("LOG \n\n\n")
+    print("These are all the last emails fetched")
+    print([type(email) for email in emails])
 
     if not emails:
         print("LOG: No new emails to process.")
@@ -257,7 +264,16 @@ async def pub_sub(request: Request):
     for email in emails:
         if not email.body or is_likely_unimportant(email):
             continue
-        response_body = get_ai_draft(email)
+
+        user_id = db_manager.get_attribute(user_email, "user_id"),
+        print("This is user id:", user_id)
+        response_body = get_ai_draft(
+            user_id,
+            email,
+            client,
+            db_manager
+        )
+
         publish_draft(creds_manager.creds, response_body, email.messageID)
 
     # Update the history ID to the latest one from the processed batch

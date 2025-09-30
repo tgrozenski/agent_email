@@ -5,10 +5,38 @@ import base64
 from email.message import EmailMessage
 from google import genai
 import sys, os
+import time
+import random
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from src.db_manager import DBManager
+
+def wrap_with_exponential_backoff(func, max_retries=5, initial_delay=1, max_delay=16, factor=2):
+    """
+    Higher-order function that wraps a given function with exponential backoff.
+    """
+    def wrapper(*args, **kwargs):
+        retries = 0
+        delay = initial_delay
+        while True:
+            try:
+                return func(*args, **kwargs)
+            except Exception as e:
+                retries += 1
+                if retries >= max_retries:
+                    print(f"Max retries exceeded for Gemini API call. Last error: {e}")
+                    raise e
+
+                # Add jitter to avoid thundering herd problem
+                jitter = random.uniform(0, delay * 0.1)
+                sleep_time = delay + jitter
+                
+                print(f"API error detected. Retrying in {sleep_time:.2f} seconds...")
+                time.sleep(sleep_time)
+                
+                delay = min(delay * factor, max_delay)
+    return wrapper
 
 @dataclass(frozen=True)
 class Email:
@@ -162,19 +190,28 @@ def get_ai_draft(
     context_window: int = 3 # num of documents to use as context
     ) -> str:
     """
-    Get a response draft from Gemini AI based on the email content.
+    Get a response draft from LLM based on the email content.
     Assumes email is 'important' i.e. not greymail and needs a response.
     """
+    if not isinstance(email, Email):
+        print(f"Something of {type(email)} was passed where an Email is expected")
+        return None
+
     context: list[dict] = db_manager_instance.get_top_k_results(
-        query=next((h['value'] for h in email.headers if h['name'].lower() == 'subject'), '' ) + email.body,
+        query= next((h.get('value', '') for h in email.headers if h.get('name', '').lower() == 'subject'), '') + email.body,
         k=context_window,
         user_id=user_id
     )
 
-    return client.models.generate_content(
-        model="gemini-2.0-flash",
-        contents=template_prompt(email, context),
-    ).text
+    # Generate content with exponenial backoff in the case of internal server error
+    generate_content_with_retry = wrap_with_exponential_backoff(lambda:
+        client.models.generate_content(
+            model="gemini-2.0-flash",
+            contents=template_prompt(email, context),
+        ).text
+    )
+
+    return generate_content_with_retry()
 
 def template_prompt(email: Email, context: list[dict]) -> str:
     """

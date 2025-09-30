@@ -3,10 +3,10 @@
 # This script sends a mock Pub/Sub message to the /processEmail endpoint.
 
 # The message.data is a base64url-encoded JSON string containing the email address and historyId.
-# Decoded: {"emailAddress": "user@example.com", "historyId": "9876543210"}
-ENCODED_DATA="eyJlbWFpbEFkZHJlc3MiOiAidXNlckBleGFtcGxlLmNvbSIsICJoaXN0b3J5SWQiOiAiOTg3NjU0MzIxMCJ9"
+# Decoded: {"emailAddress": "tyler.grozenski@gmail.com", "historyId": "2664063"}
+ENCODED_DATA="eyJlbWFpbEFkZHJlc3MiOiAidHlsZXIuZ3JvemVuc2tpQGdtYWlsLmNvbSIsICJoaXN0b3J5SWQiOiAiMjY2NDA2MyJ9"
 
-curl -X POST http://localhost:8000/processEmail \
+curl -X POST http://localhost:8000/processEmails \
 -H "Content-Type: application/json" \
 -d '{
   "message": {
