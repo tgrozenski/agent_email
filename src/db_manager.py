@@ -169,10 +169,17 @@ class DBManager:
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
-            cur.execute(
-                f'SELECT doc_id, document_name{", content" if content else ""} FROM documents WHERE user_id = {user_id}' \
-                f' ORDER BY document_name ASC LIMIT {limit} OFFSET { offset };'
-            )
+
+            # Dynamically build the column list but use parameterized queries for all user input
+            columns = "doc_id, document_name"
+            if content:
+                columns += ", content"
+            
+            sql = f"SELECT {columns} FROM documents WHERE user_id = %s ORDER BY document_name ASC LIMIT %s OFFSET %s;"
+            
+            # Sanitize user_id and use parameters to prevent SQL injection
+            clean_user_id = int(str(user_id).strip("(),"))
+            cur.execute(sql, (clean_user_id, limit, offset))
 
             results = cur.fetchall()
             documents = []
@@ -247,7 +254,9 @@ class DBManager:
                     embedding <=> %s
                 LIMIT %s;
             """
-            cur.execute(sql, (query_vector_str, user_id, query_vector_str, k))
+            # Sanitize user_id to prevent SQL injection and type errors.
+            clean_user_id = int(str(user_id).strip("(),"))
+            cur.execute(sql, (query_vector_str, clean_user_id, query_vector_str, k))
             results = cur.fetchall()
             
             formatted_results = []

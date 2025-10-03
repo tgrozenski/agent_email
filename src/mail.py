@@ -58,54 +58,69 @@ def get_unprocessed_emails(creds: Credentials, start_history_id: str) -> list[Em
 
         print("This is history", history)
 
-        messages_added = []
-        if 'history' in history:
-            for h in history['history']:
-                if 'messagesAdded' in h:
-                    # We only care about new messages that are unread and in the inbox
-                    for added_msg in h['messagesAdded']:
-                        if 'INBOX' in added_msg['message']['labelIds'] and 'UNREAD' in added_msg['message']['labelIds']:
-                            messages_added.append(added_msg)
+        message_ids_added = set()
+        message_ids_deleted = set()
 
-        print("messages added: ", messages_added)
+        if 'history' in history:
+            for record in history['history']:
+                if 'messagesAdded' in record:
+                    for added_msg in record['messagesAdded']:
+                        # We only care about new messages that are unread and in the inbox
+                        if 'INBOX' in added_msg['message']['labelIds']:
+                            message_ids_added.add(added_msg['message']['id'])
+                
+                if 'messagesDeleted' in record:
+                    for deleted_msg in record['messagesDeleted']:
+                        message_ids_deleted.add(deleted_msg['message']['id'])
+
+        # Process messages that were added but not deleted within this history batch
+        final_message_ids = list(message_ids_added - message_ids_deleted)
+        
+        print("final messages to process: ", final_message_ids)
+
         emails = []
-        if not messages_added:
+        if not final_message_ids:
             return emails
 
         # Fetch each new message
-        for added_msg in messages_added:
-            msg_id = added_msg['message']['id']
-            message = service.users().messages().get(userId='me', id=msg_id, format='full').execute()
+        for msg_id in final_message_ids:
+            try:
+                message = service.users().messages().get(userId='me', id=msg_id, format='full').execute()
 
-            payload = message['payload']
-            headers: list[dict] = payload['headers']
-            
-            body = ""
-            if 'parts' in payload:
-                for part in payload['parts']:
-                    if part['mimeType'] == 'text/plain':
-                        body_data = part['body'].get('data')
-                        if body_data:
-                            body = base64.urlsafe_b64decode(body_data).decode('utf-8')
-                        break
-            else:
-                body_data = payload['body'].get('data')
-                if body_data:
-                    body = base64.urlsafe_b64decode(body_data).decode('utf-8')
+                payload = message['payload']
+                headers: list[dict] = payload['headers']
+                
+                body = ""
+                if 'parts' in payload:
+                    for part in payload['parts']:
+                        if part['mimeType'] == 'text/plain':
+                            body_data = part['body'].get('data')
+                            if body_data:
+                                body = base64.urlsafe_b64decode(body_data).decode('utf-8')
+                            break
+                else:
+                    body_data = payload['body'].get('data')
+                    if body_data:
+                        body = base64.urlsafe_b64decode(body_data).decode('utf-8')
 
-            email = Email(
-                headers=headers,
-                body=body,
-                messageID=msg_id,
-                historyID=message['historyId']
-            )
-            emails.append(email)
+                email = Email(
+                    headers=headers,
+                    body=body,
+                    messageID=msg_id,
+                    historyID=message['historyId']
+                )
+                emails.append(email)
+            except Exception as e:
+                # It's possible for a message to be deleted between the history call and the get call.
+                # Log the error for the specific message and continue.
+                print(f"Could not fetch message {msg_id}. It might have been deleted. Error: {e}")
+                continue
 
         return emails
 
     except Exception as e:
         # Handle potential API errors, e.g., token expiration, permission issues
-        print(f"An error occurred while fetching emails: {e}")
+        print(f"An error occurred while getting get_unprocessed_emails: {e}")
         return []
 
 def publish_draft(creds: Credentials, draft_body: str, message_id: str) -> dict | None:

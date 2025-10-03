@@ -302,4 +302,6 @@ class TestMailIntegration(unittest.TestCase):
 
 
 if __name__ == "__main__":
-    unittest.main()
+    # To use a method from a unittest.TestCase class outside of a formal
+    # test run, you must manually call the class's setup method.
+     unittest.main()

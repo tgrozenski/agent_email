@@ -1,10 +1,17 @@
 TODO
 
 - Set up pub sub watch subscription for pubsub endpoint
+  https://developers.google.com/workspace/gmail/api/guides/push
+
+- Perform end to end test with a brand new user email address
 
 - Dockerize the backend, test with the container
 
+- Add encryption for data to be encrypted at rest
+
 - deploy to GCP, perform end to end tests
+
+- Fix frontend refreshing after new document created
 
 
 - FUTURE QUALITY OF LIFE FEATURES
