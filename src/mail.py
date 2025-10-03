@@ -1,12 +1,12 @@
 from dataclasses import dataclass
 from google.oauth2.credentials import Credentials
 from googleapiclient.discovery import build
-import base64
 from email.message import EmailMessage
 from google import genai
 import sys, os
 import time
 import random
+import base64
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
@@ -31,10 +31,10 @@ def wrap_with_exponential_backoff(func, max_retries=5, initial_delay=1, max_dela
                 # Add jitter to avoid thundering herd problem
                 jitter = random.uniform(0, delay * 0.1)
                 sleep_time = delay + jitter
-                
+
                 print(f"API error detected. Retrying in {sleep_time:.2f} seconds...")
                 time.sleep(sleep_time)
-                
+
                 delay = min(delay * factor, max_delay)
     return wrapper
 
@@ -55,8 +55,6 @@ def get_unprocessed_emails(creds: Credentials, start_history_id: str) -> list[Em
     try:
         # Get the history of changes since the last known historyId
         history = service.users().history().list(userId='me', startHistoryId=start_history_id).execute()
-
-        print("This is history", history)
 
         message_ids_added = set()
         message_ids_deleted = set()

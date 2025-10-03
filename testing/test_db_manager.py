@@ -196,6 +196,16 @@ class TestDBManagerUnit(unittest.TestCase):
         res = self.cur.fetchone()
         self.assertIsNone(res)
 
-    
+    def test_get_all_users(self):
+        expected = [
+            ['testuser@example.com', 'encryptedtoken123'],
+            ['tyler.grozenski@gmail.com', '1//06VDn2eK1oQf3CgYIARAAGAYSNwF-L9Ir9Z8oRJ0PPqDJEP2iSv9sMLeMi4FsNid8DVMo1qjg1hC_EswNKDKjbzh8JvWbvjhT_JU']
+        ]
+        result = self.db_manager.get_all_users_for_watch()
+        
+        # print("expected", expected)
+        # print("result: ", result)
+        self.assertEqual(result, expected)
+
 if __name__ == "__main__":
-    unittest.main()
+    unittest.main().test_get_all_users()

@@ -1,8 +1,4 @@
 TODO
-
-- Set up pub sub watch subscription for pubsub endpoint
-  https://developers.google.com/workspace/gmail/api/guides/push
-
 - Perform end to end test with a brand new user email address
 
 - Dockerize the backend, test with the container
@@ -11,11 +7,12 @@ TODO
 
 - deploy to GCP, perform end to end tests
 
-- Fix frontend refreshing after new document created
+- Update pub-sub with an actual endpoint
 
 
 - FUTURE QUALITY OF LIFE FEATURES
   - catch token expired errors, return redirect to index.html
+  - Fix frontend refreshing after new document created
   - refactor CRUD endpoints to use less db ops
     - several areas are getting using email to get id, refactor to allow querying base on email
 

@@ -277,6 +277,26 @@ class DBManager:
             if conn:
                 conn.close()
 
+    def get_all_users_for_watch(self) -> list[[str, str]]: #[name, encrypted_refresh_token]
+        """
+        This method retrieves all users and their refresh_tokens
+        Necessary for renew gmail watch
+        """
+        conn = None
+        try:
+            conn = self.mypool.connect()
+            cur = conn.cursor()
+            cur.execute('SELECT email, encrypted_refresh_token FROM users')
+
+            return list(cur.fetchall())
+        except Exception as e:
+            print("Database operation failed in get_document_by_id.")
+            print(e)
+            return None
+        finally:
+            if conn:
+                conn.close()
+
     @staticmethod
     def getcon():
         con = pg8000.dbapi.connect(

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter, Request, Header, HTTPException, status
 from fastapi.responses import JSONResponse
 from google.oauth2 import id_token
 from google.oauth2.credentials import Credentials
@@ -6,10 +6,11 @@ from google.auth.transport import requests
 from googleapiclient.discovery import build
 import base64
 import json
+import os
 
 from ..CredentialsManager import CredentialsManager
 from ..mail import get_unprocessed_emails, is_likely_unimportant, get_ai_draft, publish_draft, Email
-from ..dependencies import db_manager, client, WEB_CLIENT_ID
+from ..dependencies import db_manager, client, WEB_CLIENT_ID, INTERNAL_TASK_SECRET, CLIENT_SECRETS_FILE, GCP_PUBSUB_TOPIC, SCOPES
 
 router = APIRouter()
 
@@ -59,12 +60,14 @@ async def pub_sub(request: Request):
     """
     An endpoint that is subscribed to the pub/sub topic
     Recieves a pub sub message from google indicating a change in the user's mailbox
+    Decodes email address and fetches unprocessed emails since the stored history_id
     """
     pub_sub_dict = await request.json()
 
     # The data from pub/sub is base64 encoded and contains the user's email
     message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
     message_json = json.loads(message_data)
+    # We only need the email address
     user_email = message_json['emailAddress']
 
     # get refresh token and historyID from db
@@ -99,4 +102,64 @@ async def pub_sub(request: Request):
     print(f"Successfully processed {len(emails)} emails.")
 
     # As per google documentation we must return a 200 ack
-    return JSONResponse(content={}, status_code=200)
+    return JSONResponse(content={"Successs": "Emails processed successfully"}, status_code=200)
+
+@router.post("/tasks/renew-gmail-watch")
+async def trigger_renew_watch(x_internal_secret: str = Header(None)):
+    """
+    An endpoint to be called by a cron job to renew all Gmail watch requests.
+    It is protected by a secret header to prevent public abuse.
+    """
+    if not INTERNAL_TASK_SECRET or x_internal_secret != INTERNAL_TASK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing secret token."
+        )
+
+    print("Initiating daily renewal of Gmail watch requests...")
+
+    if not GCP_PUBSUB_TOPIC:
+        print("FATAL: GCP_PUBSUB_TOPIC_NAME environment variable not set.")
+        raise HTTPException(status_code=500, detail="Server is missing GCP_PUBSUB_TOPIC_NAME configuration.")
+
+    try:
+        with open(CLIENT_SECRETS_FILE, 'r') as f:
+            client_config = json.load(f)
+    except (FileNotFoundError, json.JSONDecodeError, KeyError):
+        print(f"FATAL: Could not find or parse client secrets file: {CLIENT_SECRETS_FILE}")
+        raise HTTPException(status_code=500, detail="Server is misconfigured with an invalid client secrets file.")
+
+    users = db_manager.get_all_users_for_watch()
+
+    if not users:
+        return {"status": "success", "message": "No users found in the database. Nothing to do."}
+
+    success_count = 0
+    failure_count = 0
+
+    for user_email, refresh_token in users:
+        if not refresh_token:
+            print(f"Skipping {user_email} due to missing refresh token.")
+            failure_count += 1
+            continue
+
+        try:
+            creds = Credentials.from_authorized_user_info({
+                "refresh_token": refresh_token,
+                "client_id": client_config["web"]["client_id"],
+                "client_secret": client_config["web"]["client_secret"],
+            }, SCOPES)
+
+            service = build('gmail', 'v1', credentials=creds)
+            watch_request = {'labelIds': ['INBOX'], 'topicName': GCP_PUBSUB_TOPIC}
+            service.users().watch(userId='me', body=watch_request).execute()
+            print(f"Successfully renewed watch for {user_email}.")
+            success_count += 1
+        except Exception as e:
+            print(f"FAILED to renew watch for {user_email}. Error: {e}")
+            failure_count += 1
+
+    summary = f"Renewal process finished. Success: {success_count}, Failed: {failure_count}."
+    print(summary)
+
+    return {"status": "success", "message": summary}
