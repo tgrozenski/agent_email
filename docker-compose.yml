@@ -1,0 +1,13 @@
+services:
+  email_service:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    environment:
+      - GEMINI_AGENT_EMAIL=${GEMINI_AGENT_EMAIL}
+      - AIVEN_PASSWORD=${AIVEN_PASSWORD}
+      - DATABASE_URL=${DATABASE_URL}
+      - INTERNAL_TASK_SECRET=${INTERNAL_TASK_SECRET}
+      - GCP_PUBSUB_TOPIC_NAME=${GCP_PUBSUB_TOPIC_NAME}
+    ports:
+      - "8000:8000"

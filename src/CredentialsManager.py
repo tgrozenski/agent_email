@@ -18,7 +18,7 @@ class CredentialsManager:
             self.creds = Credentials(token=token['access_token'])
         # If a refresh token is provided, build credentials from it
         else:
-            with open('AgentEmailWebClientSecrets.json', 'r') as f:
+            with open('credentials.json', 'r') as f:
                 client_secrets = json.load(f)['web']
 
             creds = Credentials(
