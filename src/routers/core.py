@@ -9,8 +9,22 @@ import json
 import os
 
 from ..CredentialsManager import CredentialsManager
-from ..mail import get_unprocessed_emails, is_likely_unimportant, get_ai_draft, publish_draft, Email
-from ..dependencies import db_manager, client, WEB_CLIENT_ID, INTERNAL_TASK_SECRET, CLIENT_SECRETS_FILE, GCP_PUBSUB_TOPIC, SCOPES
+from ..mail import (
+    get_unprocessed_emails,
+    is_likely_unimportant,
+    get_ai_draft,
+    publish_draft,
+    Email
+)
+from ..dependencies import (
+    db_manager,
+    client,
+    WEB_CLIENT_ID,
+    INTERNAL_TASK_SECRET,
+    CLIENT_SECRETS_FILE,
+    GCP_PUBSUB_TOPIC,
+    SCOPES
+)
 
 router = APIRouter()
 
@@ -24,6 +38,7 @@ async def recieve_auth_code(request: Request):
 
     try:
         idinfo = id_token.verify_oauth2_token(
+            # Remove ths clock_skew_in_seconds after testing
             token['id_token'], requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
         )
 
@@ -134,8 +149,7 @@ async def trigger_renew_watch(x_internal_secret: str = Header(None)):
     if not users:
         return {"status": "success", "message": "No users found in the database. Nothing to do."}
 
-    success_count = 0
-    failure_count = 0
+    success_count, failure_count = 0, 0
 
     for user_email, refresh_token in users:
         if not refresh_token:

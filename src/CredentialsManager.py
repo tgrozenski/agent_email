@@ -50,7 +50,7 @@ class CredentialsManager:
     @staticmethod
     async def get_initial_token(request: Request) -> dict:
         flow: Flow = Flow.from_client_secrets_file(
-            'AgentEmailWebClientSecrets.json',
+            'credentials.json',
             scopes=[
                 "openid",
                 "https://www.googleapis.com/auth/userinfo.email",

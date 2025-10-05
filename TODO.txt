@@ -1,7 +1,7 @@
 TODO
-- Perform end to end test with a brand new user email address
-
 - Dockerize the backend, test with the container
+
+- Perform end to end test with a brand new user email address
 
 - Add encryption for data to be encrypted at rest
 
@@ -14,7 +14,8 @@ TODO
   - catch token expired errors, return redirect to index.html
   - Fix frontend refreshing after new document created
   - refactor CRUD endpoints to use less db ops
-    - several areas are getting using email to get id, refactor to allow querying base on email
+  - several areas are getting using email to get id, refactor to allow querying based on email
+    - pass user email instead of id, use a join instead of
 
 FUTURE DIRECTIONS:
 - MCP integration via programatically generated XML

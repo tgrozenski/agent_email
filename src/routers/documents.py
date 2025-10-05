@@ -70,14 +70,14 @@ async def save_document(request: Request):
             user_email=user_email
         )
 
-        flag = db_manager.insert_document(
+        success = db_manager.insert_document(
             user_id=user_id,
             doc_name=doc_name,
             text_content=text_content,
             doc_id=doc_id
         )
 
-        if flag:
+        if success:
             return JSONResponse(content={"success": f"Content Saved"}, status_code=200)
     except Exception as e:
         if isinstance(e, ValueError):

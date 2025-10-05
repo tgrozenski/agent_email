@@ -141,7 +141,7 @@ class DBManager:
         finally:
             if conn:
                 conn.close()
-        
+
         return True
 
     def delete_document(self, doc_id: str) -> bool:
@@ -162,6 +162,7 @@ class DBManager:
     
     def get_documents(self, user_id: str, limit: int, offset: int, content: bool = True) -> list[dict] | None:
         """
+        User should be id or email of the given user
         Fetch all documents for a given user_id. Intended for document dashboard view.
         Recieves a limit and an offset for pagination.
         """
@@ -174,9 +175,9 @@ class DBManager:
             columns = "doc_id, document_name"
             if content:
                 columns += ", content"
-            
+
             sql = f"SELECT {columns} FROM documents WHERE user_id = %s ORDER BY document_name ASC LIMIT %s OFFSET %s;"
-            
+
             # Sanitize user_id and use parameters to prevent SQL injection
             clean_user_id = int(str(user_id).strip("(),"))
             cur.execute(sql, (clean_user_id, limit, offset))

@@ -186,7 +186,7 @@ class TestDBManagerUnit(unittest.TestCase):
                                         doc_name="DocToDelete",
                                         text_content="This document will be deleted.")
         self.cur.execute("SELECT doc_id FROM documents WHERE document_name = 'DocToDelete';")
-        doc_id = self.cur.fetchone()[0] 
+        doc_id = self.cur.fetchone()[0]
 
         # Act
         self.db_manager.delete_document(doc_id)
