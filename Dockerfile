@@ -8,8 +8,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
-# Need to change this later to a more secure method
-COPY credentials.json .
 
 EXPOSE 8000
 

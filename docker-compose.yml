@@ -3,11 +3,19 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    develop:
+      watch:
+        - action: sync
+          path: ./src
+          target: /app/src
+    # The command overrides the Dockerfile's CMD to enable --reload for hot-reloading
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8000 --reload
     environment:
       - GEMINI_AGENT_EMAIL=${GEMINI_AGENT_EMAIL}
       - AIVEN_PASSWORD=${AIVEN_PASSWORD}
       - DATABASE_URL=${DATABASE_URL}
       - INTERNAL_TASK_SECRET=${INTERNAL_TASK_SECRET}
       - GCP_PUBSUB_TOPIC_NAME=${GCP_PUBSUB_TOPIC_NAME}
+      - GOOGLE_CREDENTIALS=${GOOGLE_CREDENTIALS}
     ports:
       - "8000:8000"

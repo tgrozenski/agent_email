@@ -21,9 +21,7 @@ from ..dependencies import (
     client,
     WEB_CLIENT_ID,
     INTERNAL_TASK_SECRET,
-    CLIENT_SECRETS_FILE,
     GCP_PUBSUB_TOPIC,
-    SCOPES
 )
 
 router = APIRouter()
@@ -137,13 +135,6 @@ async def trigger_renew_watch(x_internal_secret: str = Header(None)):
         print("FATAL: GCP_PUBSUB_TOPIC_NAME environment variable not set.")
         raise HTTPException(status_code=500, detail="Server is missing GCP_PUBSUB_TOPIC_NAME configuration.")
 
-    try:
-        with open(CLIENT_SECRETS_FILE, 'r') as f:
-            client_config = json.load(f)
-    except (FileNotFoundError, json.JSONDecodeError, KeyError):
-        print(f"FATAL: Could not find or parse client secrets file: {CLIENT_SECRETS_FILE}")
-        raise HTTPException(status_code=500, detail="Server is misconfigured with an invalid client secrets file.")
-
     users = db_manager.get_all_users_for_watch()
 
     if not users:
@@ -158,13 +149,8 @@ async def trigger_renew_watch(x_internal_secret: str = Header(None)):
             continue
 
         try:
-            creds = Credentials.from_authorized_user_info({
-                "refresh_token": refresh_token,
-                "client_id": client_config["web"]["client_id"],
-                "client_secret": client_config["web"]["client_secret"],
-            }, SCOPES)
-
-            service = build('gmail', 'v1', credentials=creds)
+            creds_manager = CredentialsManager(refresh_token=refresh_token)
+            service = build('gmail', 'v1', credentials=creds_manager.creds)
             watch_request = {'labelIds': ['INBOX'], 'topicName': GCP_PUBSUB_TOPIC}
             service.users().watch(userId='me', body=watch_request).execute()
             print(f"Successfully renewed watch for {user_email}.")

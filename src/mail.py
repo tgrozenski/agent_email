@@ -186,7 +186,7 @@ def is_likely_unimportant(email: Email) -> bool:
         "privacy policy",
         "terms of service",
         "sale",
-        "limited time"
+        "unsubscribe"
     ]
 
     for word in promo_words:

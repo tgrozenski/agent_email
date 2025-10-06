@@ -3,6 +3,8 @@ from google.oauth2.credentials import Credentials
 from google_auth_oauthlib.flow import Flow
 from google.auth.transport.requests import Request
 
+from .dependencies import CLIENT_SECRETS
+
 class CredentialsManager:
     creds: Credentials = None
 
@@ -18,8 +20,7 @@ class CredentialsManager:
             self.creds = Credentials(token=token['access_token'])
         # If a refresh token is provided, build credentials from it
         else:
-            with open('credentials.json', 'r') as f:
-                client_secrets = json.load(f)['web']
+            client_secrets = CLIENT_SECRETS['web']
 
             creds = Credentials(
                 token=None,
@@ -49,8 +50,8 @@ class CredentialsManager:
 
     @staticmethod
     async def get_initial_token(request: Request) -> dict:
-        flow: Flow = Flow.from_client_secrets_file(
-            'credentials.json',
+        flow: Flow = Flow.from_client_config(
+            CLIENT_SECRETS,
             scopes=[
                 "openid",
                 "https://www.googleapis.com/auth/userinfo.email",
@@ -62,3 +63,4 @@ class CredentialsManager:
 
         auth_code = await request.json()
         return flow.fetch_token(code=auth_code['code'])
+

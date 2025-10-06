@@ -159,7 +159,7 @@ class DBManager:
             print(e)
             return False
         return True
-    
+
     def get_documents(self, user_id: str, limit: int, offset: int, content: bool = True) -> list[dict] | None:
         """
         User should be id or email of the given user
@@ -197,7 +197,7 @@ class DBManager:
             print("Database operation failed in get_documents.")
             print(e)
             return None
-    
+
     def get_document_by_id(self, doc_id: str) -> dict | None:
         """
         Fetch a single document by its ID. May return None if not found or on error.

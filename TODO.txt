@@ -1,28 +1,33 @@
 TODO
-- Dockerize the backend, test with the container
+- add production settings to docker compose.yml
 
-- refactor app to take in credentials as an env variable rather than a file
+- provision virtual machine with an AMI
 
-- improve the is_likely_unimportant function to better filter
+- Download nginx on the vm
 
-- Perform end to end test with a brand new user email address
+- Configure firewall (ufw)
 
-- Add encryption for data to be encrypted at rest
+- Install docker and nginx on vm
+
+- Clone application code using git
+
+- Set secrets (env vars) with ssh
 
 - deploy to GCP, perform end to end tests
 
-- Update pub-sub with an actual endpoint
+- Update pub-sub in gcloud with an actual endpoint
+
+- Run application code via ssh to start the server
+
+- Set the cron job
+
+- configure nginx to behave as reverse proxy
 
 
-- FUTURE QUALITY OF LIFE FEATURES
-  - catch token expired errors, return redirect to index.html
+Future Issues:
+  - improve the is_likely_unimportant function to better filter
+  - Add encryption for data to be encrypted at rest
+  - catch token expired errors in frontend, return redirect to index.html
   - Fix frontend refreshing after new document created
-  - refactor CRUD endpoints to use less db ops
-  - several areas are getting using email to get id, refactor to allow querying based on email
-    - pass user email instead of id, use a join instead of
+  - several areas are getting using email to get id, refactor to join on id, use email
 
-FUTURE DIRECTIONS:
-- MCP integration via programatically generated XML
-
-- Set pub sub up in google console
-https://developers.google.com/workspace/gmail/api/guides/push
