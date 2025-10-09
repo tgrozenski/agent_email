@@ -1,6 +1,6 @@
 # AI-Powered Email Assistant
 
-This project is a backend service that helps users manage their email by leveraging a personal knowledge base. It allows users to store documents and uses that information to help draft intelligent, context-aware replies to incoming emails.
+This project is a backend service that helps users manage their email by leveraging a personal knowledge base. It allows users to store documents and uses that information to help draft intelligent, context-aware replies to incoming emails. The application relies on a simple [frontend client](https://github.com/tgrozenski/agent_email_frontend.github.io) written with HTML, JavaScript, and TailwindCSS.
 
 ## Core Functionality
 
