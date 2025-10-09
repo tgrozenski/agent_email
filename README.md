@@ -2,6 +2,8 @@
 
 This project is a backend service that helps users manage their email by leveraging a personal knowledge base. It allows users to store documents and uses that information to help draft intelligent, context-aware replies to incoming emails. The application relies on a simple [frontend client](https://github.com/tgrozenski/agent_email_frontend.github.io) written with HTML, JavaScript, and TailwindCSS.
 
+The application is currently live [here](https://tgrozenski.github.io/agent_email_frontend.github.io/), email me at tyler.grozenski@gmail.com if you would like to be added as a test user.
+
 ## Core Functionality
 
 The application is built to connect a user's knowledge with their email workflow.
