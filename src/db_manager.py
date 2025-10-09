@@ -72,17 +72,18 @@ class DBManager:
 
         return True
 
-    def get_attribute(self, user_email: str, attribute: str) -> bool:
+    def get_attribute(self, user_email: str, attribute: str) -> str | None:
         """
-        Fetch an attribute from the db with a given user email
+        Fetch an attribute from the db with a given user email.
+        Note: The attribute name is controlled internally and not by user input.
         """
         conn = None
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
-            cur.execute(
-                f'SELECT {attribute} FROM users WHERE email = \'{user_email}\';'
-            )
+            # Use parameterized query for user_email to prevent SQL injection
+            sql = f'SELECT {attribute} FROM users WHERE email = %s;'
+            cur.execute(sql, (user_email,))
 
             res = cur.fetchone()
             if res:
@@ -90,7 +91,7 @@ class DBManager:
             else:
                 return None
         except Exception as e:
-            print("Database operation failed in last historyID.")
+            print(f"Database operation failed while getting attribute {attribute}.")
             print(e)
             return None
         finally:
@@ -99,40 +100,48 @@ class DBManager:
 
     def insert_document(
             self,
-            user_id: str,
+            user_email: str,
             doc_name: str,
             text_content: str,
             doc_id: str = None
         ) -> bool:
         """
-        Insert a given document into the database, generates a embedding for RAG to insert.
-        If doc_id is provided, it will alter the existing document instead of creating a new one.
+        Insert a given document into the database using the user's email.
+        If doc_id is provided, it will update the existing document instead.
         """
-
         # Enforce document limits server-side
         doc = doc_name + "\n" + text_content
         if len(doc) > MAX_DOCUMENT_LENGTH:
-            raise ValueError("Document too long, must be under 2000 characters., got " + str(len(doc)))
+            raise ValueError(f"Document too long, must be under {MAX_DOCUMENT_LENGTH} characters., got {len(doc)}")
 
         embeddings_list = list(self.embedding_model.embed([doc]))
         embedding = embeddings_list[0]
+        embedding_str = str(embedding.tolist())
 
         conn = None
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
-            if doc_id: # update existing
+            if doc_id:
                 cur.execute(
                     'UPDATE documents SET embedding = %s, content = %s WHERE doc_id = %s;',
-                    (str(embedding.tolist()), text_content, doc_id)
+                    (embedding_str, text_content, doc_id)
                 )
-            else: # new 
-                cur.execute(
-                    'INSERT INTO documents' \
-                    '(user_id, document_name, embedding, content)' \
-                    'VALUES (%s, %s, %s, %s);',
-                    (user_id, doc_name, str(embedding.tolist()), text_content)
-                )
+            else:
+                sql = """
+                    INSERT INTO documents (user_id, document_name, embedding, content)
+                    SELECT
+                        u.user_id,
+                        %s,
+                        %s,
+                        %s
+                    FROM
+                        users u
+                    WHERE
+                        u.email = %s;
+                """
+                params = (doc_name, embedding_str, text_content, user_email)
+                cur.execute(sql, params)
             conn.commit()
         except Exception as e:
             print("Database operation failed in insert_document.")
@@ -141,7 +150,6 @@ class DBManager:
         finally:
             if conn:
                 conn.close()
-
         return True
 
     def delete_document(self, doc_id: str) -> bool:
@@ -160,48 +168,48 @@ class DBManager:
             return False
         return True
 
-    def get_documents(self, user_id: str, limit: int, offset: int, content: bool = True) -> list[dict] | None:
+    def get_documents(self, user_email: str, limit: int, offset: int, content: bool = True) -> list[dict] | None:
         """
-        User should be id or email of the given user
-        Fetch all documents for a given user_id. Intended for document dashboard view.
-        Recieves a limit and an offset for pagination.
+        Fetch all documents for a given user by email.
         """
         conn = None
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
 
-            # Dynamically build the column list but use parameterized queries for all user input
-            columns = "doc_id, document_name"
+            columns = "d.doc_id, d.document_name"
             if content:
-                columns += ", content"
+                columns += ", d.content"
 
-            sql = f"SELECT {columns} FROM documents WHERE user_id = %s ORDER BY document_name ASC LIMIT %s OFFSET %s;"
-
-            # Sanitize user_id and use parameters to prevent SQL injection
-            clean_user_id = int(str(user_id).strip("(),"))
-            cur.execute(sql, (clean_user_id, limit, offset))
+            sql = f"""
+                SELECT {columns}
+                FROM documents d
+                JOIN users u ON u.user_id = d.user_id
+                WHERE u.email = %s
+                ORDER BY d.document_name ASC
+                LIMIT %s OFFSET %s;
+            """
+            cur.execute(sql, (user_email, limit, offset))
 
             results = cur.fetchall()
             documents = []
             for row in results:
-                documents.append({
-                    "id": row[0],
-                    "name": row[1],
-                })
-                # include content if requested
+                doc = {"id": row[0], "name": row[1]}
                 if content:
-                    documents[-1]["content"] = row[2]
+                    doc["content"] = row[2]
+                documents.append(doc)
             return documents
         except Exception as e:
             print("Database operation failed in get_documents.")
             print(e)
             return None
+        finally:
+            if conn:
+                conn.close()
 
     def get_document_by_id(self, doc_id: str) -> dict | None:
         """
         Fetch a single document by its ID. May return None if not found or on error.
-        Intended for document dashboard view.
         """
         conn = None
         try:
@@ -213,11 +221,7 @@ class DBManager:
             )
             result = cur.fetchone()
             if result:
-                return {
-                    "id": result[0],
-                    "name": result[1],
-                    "content": result[2]
-                }
+                return {"id": result[0], "name": result[1], "content": result[2]}
             else:
                 return None
         except Exception as e:
@@ -228,12 +232,10 @@ class DBManager:
             if conn:
                 conn.close()
 
-    def get_top_k_results(self, query: str, k: int, user_id: str) -> list[dict] | None:
+    def get_top_k_results(self, query: str, k: int, user_email: str) -> list[dict] | None:
         """
         Generates an embedding for the query and returns the top k most similar documents for a user.
-        May return None in the event of a database error.
         """
-        # 1. Generate the embedding for the user's query.
         query_embedding = list(self.embedding_model.embed([query]))[0]
         query_vector_str = str(query_embedding.tolist())
 
@@ -243,23 +245,23 @@ class DBManager:
             cur = conn.cursor()
             sql = """
                 SELECT
-                    doc_id,
-                    document_name,
-                    content,
-                    1 - (embedding <=> %s) AS similarity
+                    d.doc_id,
+                    d.document_name,
+                    d.content,
+                    1 - (d.embedding <=> %s) AS similarity
                 FROM
-                    documents
+                    documents d
+                JOIN users u ON d.user_id = u.user_id
                 WHERE
-                    user_id = %s
+                    u.email = %s
                 ORDER BY
-                    embedding <=> %s
+                    d.embedding <=> %s
                 LIMIT %s;
             """
-            # Sanitize user_id to prevent SQL injection and type errors.
-            clean_user_id = int(str(user_id).strip("(),"))
-            cur.execute(sql, (query_vector_str, clean_user_id, query_vector_str, k))
+            params = (query_vector_str, user_email, query_vector_str, k)
+            cur.execute(sql, params)
             results = cur.fetchall()
-            
+
             formatted_results = []
             for row in results:
                 formatted_results.append({
@@ -269,7 +271,6 @@ class DBManager:
                     "similarity": round(row[3], 4)
                 })
             return formatted_results
-
         except Exception as e:
             print("Database operation failed in get_top_k_results.")
             print(e)
@@ -288,10 +289,9 @@ class DBManager:
             conn = self.mypool.connect()
             cur = conn.cursor()
             cur.execute('SELECT email, encrypted_refresh_token FROM users')
-
             return list(cur.fetchall())
         except Exception as e:
-            print("Database operation failed in get_document_by_id.")
+            print("Database operation failed in get_all_users_for_watch.")
             print(e)
             return None
         finally:
@@ -300,6 +300,8 @@ class DBManager:
 
     @staticmethod
     def getcon():
+        print("Trying to connect...")
+        print("this is the password:", AIVEN_PASSWORD, ":")
         con = pg8000.dbapi.connect(
             user="avnadmin",
             password=AIVEN_PASSWORD,

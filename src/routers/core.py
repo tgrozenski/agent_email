@@ -98,9 +98,8 @@ async def pub_sub(request: Request):
         if not email.body or is_likely_unimportant(email):
             continue
 
-        user_id = db_manager.get_attribute(user_email, "user_id"),
         response_body = get_ai_draft(
-            user_id,
+            user_email,
             email,
             client,
             db_manager

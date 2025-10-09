@@ -1,33 +1,17 @@
 TODO
-- add production settings to docker compose.yml
 
-- provision virtual machine with an AMI
+- Deploy on cli
 
-- Download nginx on the vm
-
-- Configure firewall (ufw)
-
-- Install docker and nginx on vm
-
-- Clone application code using git
-
-- Set secrets (env vars) with ssh
-
-- deploy to GCP, perform end to end tests
-
-- Update pub-sub in gcloud with an actual endpoint
-
-- Run application code via ssh to start the server
-
-- Set the cron job
-
-- configure nginx to behave as reverse proxy
-
+- Configure a google cloud scheduler to run daily to renew watch requests
+- Reconfigure pub sub to be set to new managed url
+- adjust frontend url's to match managed url
 
 Future Issues:
+  Backend:
   - improve the is_likely_unimportant function to better filter
   - Add encryption for data to be encrypted at rest
-  - catch token expired errors in frontend, return redirect to index.html
   - Fix frontend refreshing after new document created
-  - several areas are getting using email to get id, refactor to join on id, use email
+
+  Frontend:
+  - catch token expired errors in frontend, return redirect to index.html
 

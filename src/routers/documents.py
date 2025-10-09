@@ -28,11 +28,7 @@ async def get_documents(request: Request, offset: int = 0, limit: int = 10):
         except Exception as e:
             return JSONResponse(content={"error": f"Invalid token: {e}"}, status_code=401)
 
-        user_id = db_manager.get_attribute(
-            attribute="user_id",
-            user_email=user_email
-        )
-        documents = db_manager.get_documents(user_id=user_id, content=True, offset=offset, limit=limit)
+        documents = db_manager.get_documents(user_email=user_email, content=True, offset=offset, limit=limit)
 
         return JSONResponse(content={"documents": documents}, status_code=200)
     except Exception as e:
@@ -65,13 +61,8 @@ async def save_document(request: Request):
         text_content = data.get("text_content")
         doc_id = data.get("doc_id", None) # optional, for updating existing document
 
-        user_id = db_manager.get_attribute(
-            attribute="user_id",
-            user_email=user_email
-        )
-
         success = db_manager.insert_document(
-            user_id=user_id,
+            user_email=user_email,
             doc_name=doc_name,
             text_content=text_content,
             doc_id=doc_id

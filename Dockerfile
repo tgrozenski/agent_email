@@ -9,6 +9,9 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
 
+# This EXPOSE is for documentation; Cloud Run uses the PORT env var.
 EXPOSE 8000
 
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Run the application as a module to enable relative imports
+# and execute the __main__ block.
+CMD ["python", "-m", "src.main"]

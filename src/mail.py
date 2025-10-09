@@ -196,7 +196,7 @@ def is_likely_unimportant(email: Email) -> bool:
     return False
 
 def get_ai_draft(
-    user_id: str,
+    user_email: str,
     email: Email,
     client: genai.Client,
     db_manager_instance: DBManager,
@@ -213,7 +213,7 @@ def get_ai_draft(
     context: list[dict] = db_manager_instance.get_top_k_results(
         query= next((h.get('value', '') for h in email.headers if h.get('name', '').lower() == 'subject'), '') + email.body,
         k=context_window,
-        user_id=user_id
+        user_email=user_email
     )
 
     # Generate content with exponenial backoff in the case of internal server error

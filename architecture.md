@@ -1,6 +1,6 @@
 # System Architecture
 
-Here is the high-level architecture for the agent-email service.
+This document outlines the high-level, serverless architecture for the agent-email service deployed on Google Cloud.
 
 ```mermaid
 graph TD
@@ -9,31 +9,35 @@ graph TD
         FrontendClient["Frontend Client\n(HTML/CSS/JS, Separate Repo)"]
     end
 
-    subgraph "Virtual Machine"
-        EmailService["FastAPI Email Service API"]
-        CronJob["Cron Job"]
+    subgraph "Google Cloud Platform (GCP)"
+        CloudRun["Cloud Run Service\n(FastAPI Container)"]
+        Scheduler["Cloud Scheduler"]
+        ArtifactRegistry["Artifact Registry\n(Container Image Storage)"]
+        SecretManager["Secret Manager"]
+        PubSub["Google Pub/Sub"]
+        GmailAPI["Gmail API"]
+        OAuth["Google OAuth"]
     end
 
-    subgraph "External Services"
+    subgraph "Other External Services"
         AivenDB[("AIVEN PostgreSQL w/ pgvector")]
         Gemini["Gemini API"]
-        GmailAPI["Gmail API"]
-        PubSub["Google Pub/Sub"]
-        OAuth["Google OAuth"]
     end
 
     %% --- High-Level Relationships ---
 
     User -- "Uses" --> FrontendClient
-    FrontendClient -- "API Calls (Login, Docs)" --> EmailService
+    FrontendClient -- "API Calls (Login, Docs)" --> CloudRun
     FrontendClient -- "Handles Auth Flow via" --> OAuth
 
-    EmailService -- "Validates Tokens with" --> OAuth
-    EmailService -- "Manages Users, Docs, Tokens" --> AivenDB
-    EmailService -- "Manages Watch, Reads/Writes Mail" --> GmailAPI
-    EmailService -- "Generates Drafts via" --> Gemini
+    CloudRun -- "Reads Secrets from" --> SecretManager
+    CloudRun -- "Pulls Container Image from" --> ArtifactRegistry
+    CloudRun -- "Validates Tokens with" --> OAuth
+    CloudRun -- "Manages Users, Docs, Tokens" --> AivenDB
+    CloudRun -- "Manages Watch, Reads/Writes Mail" --> GmailAPI
+    CloudRun -- "Generates Drafts via" --> Gemini
 
-    CronJob -- "Triggers Watch Renewal" --> EmailService
-    PubSub -- "Notifies of New Email" --> EmailService
+    Scheduler -- "Triggers Watch Renewal" --> CloudRun
+    PubSub -- "Notifies of New Email" --> CloudRun
     GmailAPI -- "Sends Events to" --> PubSub
 ```

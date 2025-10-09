@@ -35,10 +35,10 @@ class TestMailIntegration(unittest.TestCase):
         """Handles OAuth flow and DB connection before running tests."""
         cls.db_manager = DBManager()
         token_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'token.json')
-        
+
         if os.path.exists(token_path):
             cls.creds = Credentials.from_authorized_user_file(token_path, SCOPES)
-        
+
         if not cls.creds or not cls.creds.valid:
             if cls.creds and cls.creds.expired and cls.creds.refresh_token:
                 cls.creds.refresh(Request())
@@ -46,13 +46,13 @@ class TestMailIntegration(unittest.TestCase):
                 secrets_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'test_client_secrets.json')
                 if not os.path.exists(secrets_file):
                     secrets_file = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 'credentials.json')
-                
+
                 if not os.path.exists(secrets_file):
                     raise FileNotFoundError("Could not find 'AgentEmailWebClientSecrets.json' or 'credentials.json' in the project root. Please configure your OAuth client ID.")
 
                 flow = InstalledAppFlow.from_client_secrets_file(secrets_file, SCOPES)
                 cls.creds = flow.run_local_server(port=0)
-            
+
             with open(token_path, "w") as token:
                 token.write(cls.creds.to_json())
 
@@ -87,7 +87,7 @@ class TestMailIntegration(unittest.TestCase):
         except HttpError as error:
             self.fail(f"An error occurred while fetching the email: {error}")
             return None
-    
+
     def verify_draft(self, original_message_id: str, expected_draft_text: str) -> bool:
         """HELPER, Verifies that a draft with specific text exists in reply to a message."""
         try:
@@ -105,7 +105,6 @@ class TestMailIntegration(unittest.TestCase):
             for draft_item in drafts:
                 draft = service.users().drafts().get(userId='me', id=draft_item['id']).execute()
                 if draft.get('message', {}).get('threadId') == thread_id:
-                    # Found a draft in the right thread, now check content
                     payload = draft['message']['payload']
                     body_data = ""
                     if 'parts' in payload:
@@ -120,7 +119,6 @@ class TestMailIntegration(unittest.TestCase):
                         decoded_body = base64.urlsafe_b64decode(body_data).decode('utf-8')
                         if expected_draft_text in decoded_body:
                             print(f"Success: Found matching draft {draft_item['id']} with correct text.")
-                            # Clean up the created draft
                             service.users().drafts().delete(userId='me', id=draft_item['id']).execute()
                             print(f"Cleaned up draft {draft_item['id']}.")
                             return True
@@ -139,7 +137,7 @@ class TestMailIntegration(unittest.TestCase):
 
         try:
             service = build("gmail", "v1", credentials=self.creds)
-            
+
             profile = service.users().getProfile(userId='me').execute()
             user_email = profile.get('emailAddress')
             latest_history_id = profile.get('historyId')
