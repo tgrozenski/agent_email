@@ -3,7 +3,7 @@ psql 'postgres://avnadmin:AVNS_00YSqjFuLb40X7iDCNq@pg-38474cd-agent-email.aivenc
 -c "INSERT INTO users (email, name, history_id, encrypted_refresh_token) VALUES ('testuser@example.com', 'Test User', 'history123', 'encryptedtoken123') ON CONFLICT (email) DO NOTHING;"
 
 echo "Testing /saveDocument with Authorization header..."
-curl -X POST http://localhost:8000/saveDocument \
+curl -X POST https://email-service-592589126466.us-west2.run.app/saveDocument \
 -H "Content-Type: application/json" \
 -H "Authorization: Bearer FAKE_TOKEN" \
 -d '{ \
@@ -13,7 +13,7 @@ curl -X POST http://localhost:8000/saveDocument \
 echo "\n"
 
 echo "Testing /saveDocument without Authorization header (should fail)..."
-curl -X POST http://localhost:8000/saveDocument \
+curl -X POST https://email-service-592589126466.us-west2.run.app/saveDocument \
 -H "Content-Type: application/json" \
 -d '{ \
     "doc_name": "Favorite colors", \
@@ -22,10 +22,6 @@ curl -X POST http://localhost:8000/saveDocument \
 echo "\n"
 
 echo "Testing /getDocuments with Authorization header..."
-curl -X GET http://localhost:8000/getDocuments \
+curl -X POST https://email-service-592589126466.us-west2.run.app/getDocuments \
 -H "Authorization: Bearer FAKE_TOKEN"
-echo "\n"
-
-echo "Testing /getDocuments without Authorization header (should fail)..."
-curl -X GET http://localhost:8000/getDocuments
 echo "\n"

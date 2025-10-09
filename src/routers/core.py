@@ -123,6 +123,7 @@ async def trigger_renew_watch(x_internal_secret: str = Header(None)):
     It is protected by a secret header to prevent public abuse.
     """
     if not INTERNAL_TASK_SECRET or x_internal_secret != INTERNAL_TASK_SECRET:
+        print("mismatch, expected:", INTERNAL_TASK_SECRET, ", actual:", x_internal_secret)
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Invalid or missing secret token."

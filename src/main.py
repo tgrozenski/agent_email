@@ -22,7 +22,9 @@ app.include_router(core.router)
 
 @app.get("/")
 def read_root():
-    return {"message": "Server is running."}
+    db_manager = db_manager()
+    data = db_manager.get_attribute('tyler.grozenski@gmail.com', 'history_id')
+    return {"message": f"Server is running.{data}"}
 
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 8080))

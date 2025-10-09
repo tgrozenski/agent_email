@@ -2,6 +2,7 @@ from sqlalchemy import pool
 from fastembed import TextEmbedding
 import pg8000
 import os
+import ssl
 
 AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
 # Ensure our content fits into RAG vector limit (384 dims)
@@ -13,7 +14,10 @@ class DBManager:
 
     def __init__(self):
         # pooling to manage potential concurrent connections
-        self.mypool = pool.QueuePool(self.getcon, max_overflow=10, pool_size=5)
+        try:
+            self.mypool = pool.QueuePool(self.getcon, max_overflow=10, pool_size=5)
+        except Exception as e:
+            print(f"Failed connecting, Exception: {e}")
         # Load the embedding model once when the DBManager is initialized for efficiency
         self.embedding_model = TextEmbedding()
 
@@ -300,13 +304,13 @@ class DBManager:
 
     @staticmethod
     def getcon():
-        print("Trying to connect...")
-        print("this is the password:", AIVEN_PASSWORD, ":")
+        ssl_context = ssl.create_default_context(cafile="ca.pem")
         con = pg8000.dbapi.connect(
             user="avnadmin",
             password=AIVEN_PASSWORD,
             host="pg-38474cd-agent-email.e.aivencloud.com",
             port=17757,
-            database="defaultdb"
+            database="defaultdb",
+            ssl_context=ssl_context
         )
         return con

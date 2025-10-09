@@ -18,7 +18,7 @@ The application is built to connect a user's knowledge with their email workflow
 - **Vector Embeddings**: The **`FastEmbed`** library for generating high-quality text embeddings.
 - **Authentication**: Google OAuth 2.0 for secure, user-consented access to the Gmail API.
 - **Generative AI**: Google's Gemini API for generating draft email responses.
-- **Deployment**: Docker and Docker Compose for containerization and service management.
+- **Deployment**: Containerized with **Docker** and deployed on **Google Cloud Run**. Cron jobs are managed by **Google Cloud Scheduler**.
 
 ## API Endpoints
 

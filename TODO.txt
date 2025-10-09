@@ -1,11 +1,5 @@
 TODO
 
-- Deploy on cli
-
-- Configure a google cloud scheduler to run daily to renew watch requests
-- Reconfigure pub sub to be set to new managed url
-- adjust frontend url's to match managed url
-
 Future Issues:
   Backend:
   - improve the is_likely_unimportant function to better filter
@@ -15,3 +9,4 @@ Future Issues:
   Frontend:
   - catch token expired errors in frontend, return redirect to index.html
 
+2025-10-09 09:37:34.247 PDT

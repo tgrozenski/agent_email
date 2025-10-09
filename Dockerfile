@@ -8,6 +8,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY src/ ./src/
+COPY ca.pem .
 
 # This EXPOSE is for documentation; Cloud Run uses the PORT env var.
 EXPOSE 8000
