@@ -64,16 +64,20 @@ def get_unprocessed_emails(creds: Credentials, start_history_id: str) -> list[Em
                 if 'messagesAdded' in record:
                     for added_msg in record['messagesAdded']:
                         # We only care about new messages that are unread and in the inbox
-                        if 'INBOX' in added_msg['message']['labelIds']:
+                        # Use .get() to safely access labelIds, defaulting to an empty list
+                        if 'INBOX' in added_msg['message'].get('labelIds', []):
                             message_ids_added.add(added_msg['message']['id'])
-                
-                if 'messagesDeleted' in record:
-                    for deleted_msg in record['messagesDeleted']:
-                        message_ids_deleted.add(deleted_msg['message']['id'])
+
+                # Safely get the list of deleted messages
+                for deleted_msg in record.get('messagesDeleted', []):
+                    # Safely get the message ID from the nested structure
+                    deleted_id = deleted_msg.get('message', {}).get('id')
+                    if deleted_id:
+                        message_ids_deleted.add(deleted_id)
 
         # Process messages that were added but not deleted within this history batch
         final_message_ids = list(message_ids_added - message_ids_deleted)
-        
+
         print("final messages to process: ", final_message_ids)
 
         emails = []
@@ -85,9 +89,10 @@ def get_unprocessed_emails(creds: Credentials, start_history_id: str) -> list[Em
             try:
                 message = service.users().messages().get(userId='me', id=msg_id, format='full').execute()
 
-                payload = message['payload']
-                headers: list[dict] = payload['headers']
-                
+                # Safely get payload and headers
+                payload = message.get('payload', {})
+                headers: list[dict] = payload.get('headers', [])
+
                 body = ""
                 if 'parts' in payload:
                     for part in payload['parts']:
