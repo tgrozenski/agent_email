@@ -26,140 +26,157 @@ from ..dependencies import (
 
 router = APIRouter()
 
-@router.post("/login")
-async def recieve_auth_code(request: Request):
+# --- Business Logic Functions ---
+
+async def _login_or_register_user(token: dict) -> tuple[str, str, bool]:
     """
-    This is the endpoint to exchange the permission code with token to be used by our API
+    Handles user registration or login, returning a message, id_token, and a flag indicating if the user is new.
     """
-    # get token
-    token = await CredentialsManager.get_initial_token(request)
+    idinfo = id_token.verify_oauth2_token(token['id_token'], requests.Request(), WEB_CLIENT_ID)
 
-    try:
-        idinfo = id_token.verify_oauth2_token(
-            # Remove ths clock_skew_in_seconds after testing
-            token['id_token'], requests.Request(), WEB_CLIENT_ID, clock_skew_in_seconds=10
-        )
+    user_email = idinfo.get('email')
+    if not user_email:
+        raise ValueError("Email not found in token.")
 
-        user_name = idinfo.get('name', 'N/A')
-        user_email = idinfo.get('email')
-        refresh_token = token.get('refresh_token')
+    # Check if user already exists
+    if db_manager.user_exists(user_email):
+        return f"User {user_email} now logged in.", token['id_token'], False
 
-        creds = Credentials(token=token['access_token'])
-        CredentialsManager.creds = creds
+    # If user is new, create them
+    user_name = idinfo.get('name', 'N/A')
+    refresh_token = token.get('refresh_token')
+    
+    creds = Credentials(token=token['access_token'], refresh_token=refresh_token)
+    service = build('gmail', 'v1', credentials=creds)
+    profile = service.users().getProfile(userId='me').execute()
+    initial_history_id = profile.get('historyId')
 
-        service = build('gmail', 'v1', credentials=creds)
-        profile = service.users().getProfile(userId='me').execute()
-        initial_history_id = profile.get('historyId')
+    db_manager.insert_new_user(
+        name=user_name,
+        user_email=user_email,
+        refresh_token=refresh_token,
+        history_id=initial_history_id
+    )
+    
+    # Set up the initial watch for the new user
+    _create_gmail_watch(creds)
 
-        # insert new credentials into db, if user already exists nothing will be done
-        db_manager.insert_new_user(
-            name=user_name,
-            user_email=user_email,
-            refresh_token=refresh_token,
-            historyID=initial_history_id
-        )
-
-    except Exception as e:
-        print(f"Token verification failed: {e}")
-        return JSONResponse(content={"error": f"Token verification failed. {e}"}, status_code=400)
-
-    return JSONResponse(content = {
-        "message": f"User {user_email} successfully registered.",
-        "id_token": token['id_token']
-        }, status_code=200)
-
-@router.post("/processEmails")
-async def pub_sub(request: Request):
+    return f"User {user_email} successfully registered.", token['id_token'], True
+async def _process_emails_for_user(user_email: str):
     """
-    An endpoint that is subscribed to the pub/sub topic
-    Recieves a pub sub message from google indicating a change in the user's mailbox
-    Decodes email address and fetches unprocessed emails since the stored history_id
+    Processes all new emails for a given user.
     """
-    pub_sub_dict = await request.json()
-
-    # The data from pub/sub is base64 encoded and contains the user's email
-    message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
-    message_json = json.loads(message_data)
-    # We only need the email address
-    user_email = message_json['emailAddress']
-
-    # get refresh token and historyID from db
     refresh_token = db_manager.get_attribute(user_email, "encrypted_refresh_token")
     start_history_id = db_manager.get_attribute(user_email, "history_id")
 
-    # use gmail api to get emails since last historyID
-    creds_manager: CredentialsManager = CredentialsManager(refresh_token=refresh_token)
+    creds_manager = CredentialsManager(refresh_token=refresh_token)
     emails: list[Email] = get_unprocessed_emails(creds_manager.creds, start_history_id)
 
     if not emails:
-        print("LOG: No new emails to process.")
+        print(f"LOG: No new emails to process for {user_email}.")
+        return
 
     for email in emails:
         if not email.body or is_likely_unimportant(email):
             continue
 
-        response_body = get_ai_draft(
-            user_email,
-            email,
-            client,
-            db_manager
-        )
-
+        response_body = get_ai_draft(user_email, email, client, db_manager)
         publish_draft(creds_manager.creds, response_body, email.messageID)
 
-    # Update the history ID to the latest one from the processed batch
     if emails:
         latest_history_id = max(int(email.historyID) for email in emails)
         db_manager.update_historyID(user_email, str(latest_history_id))
-    print(f"Successfully processed {len(emails)} emails.")
+    
+    print(f"Successfully processed {len(emails)} emails for {user_email}.")
 
-    # As per google documentation we must return a 200 ack
-    return JSONResponse(content={"Successs": "Emails processed successfully"}, status_code=200)
-
-@router.post("/tasks/renew-gmail-watch")
-async def trigger_renew_watch(x_internal_secret: str = Header(None)):
+def _create_gmail_watch(creds: Credentials) -> bool:
     """
-    An endpoint to be called by a cron job to renew all Gmail watch requests.
-    It is protected by a secret header to prevent public abuse.
+    Creates a Gmail watch subscription for the authenticated user.
     """
-    if not INTERNAL_TASK_SECRET or x_internal_secret != INTERNAL_TASK_SECRET:
-        print("mismatch, expected:", INTERNAL_TASK_SECRET, ", actual:", x_internal_secret)
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Invalid or missing secret token."
-        )
+    try:
+        service = build('gmail', 'v1', credentials=creds)
+        watch_request = {'labelIds': ['INBOX'], 'topicName': GCP_PUBSUB_TOPIC}
+        service.users().watch(userId='me', body=watch_request).execute()
+        return True
+    except Exception as e:
+        print(f"FAILED to create watch for user. Error: {e}")
+        return False
 
-    print("Initiating daily renewal of Gmail watch requests...")
-
+def _renew_all_user_watches() -> str:
+    """
+    Iterates through all users and renews their Gmail watch subscription.
+    """
     if not GCP_PUBSUB_TOPIC:
         print("FATAL: GCP_PUBSUB_TOPIC_NAME environment variable not set.")
         raise HTTPException(status_code=500, detail="Server is missing GCP_PUBSUB_TOPIC_NAME configuration.")
 
     users = db_manager.get_all_users_for_watch()
-
     if not users:
-        return {"status": "success", "message": "No users found in the database. Nothing to do."}
+        return "No users found in the database. Nothing to do."
 
     success_count, failure_count = 0, 0
-
     for user_email, refresh_token in users:
         if not refresh_token:
             print(f"Skipping {user_email} due to missing refresh token.")
             failure_count += 1
             continue
 
-        try:
-            creds_manager = CredentialsManager(refresh_token=refresh_token)
-            service = build('gmail', 'v1', credentials=creds_manager.creds)
-            watch_request = {'labelIds': ['INBOX'], 'topicName': GCP_PUBSUB_TOPIC}
-            service.users().watch(userId='me', body=watch_request).execute()
+        creds_manager = CredentialsManager(refresh_token=refresh_token)
+        if _create_gmail_watch(creds_manager.creds):
             print(f"Successfully renewed watch for {user_email}.")
             success_count += 1
-        except Exception as e:
-            print(f"FAILED to renew watch for {user_email}. Error: {e}")
+        else:
+            print(f"FAILED to renew watch for {user_email}.")
             failure_count += 1
 
-    summary = f"Renewal process finished. Success: {success_count}, Failed: {failure_count}."
-    print(summary)
+    return f"Renewal process finished. Success: {success_count}, Failed: {failure_count}."
 
+# --- API Endpoints ---
+
+@router.post("/login")
+async def recieve_auth_code(request: Request):
+    """
+    Exchanges an auth code for tokens, logs in or registers a user, and sets up a watch for new users.
+    """
+    try:
+        token = await CredentialsManager.get_initial_token(request)
+        message, id_token_val, _ = await _login_or_register_user(token)
+        return JSONResponse(content={"message": message, "id_token": id_token_val}, status_code=200)
+    except Exception as e:
+        print(f"Login process failed: {e}")
+        return JSONResponse(content={"error": f"Login process failed. {e}"}, status_code=400)
+
+@router.post("/processEmails")
+async def pub_sub(request: Request):
+    """
+    Webhook for Pub/Sub to trigger email processing for a user.
+    """
+    try:
+        pub_sub_dict = await request.json()
+        message_data = base64.b64decode(pub_sub_dict['message']['data']).decode('utf-8')
+        message_json = json.loads(message_data)
+        user_email = message_json['emailAddress']
+
+        await _process_emails_for_user(user_email)
+
+        return JSONResponse(content={"success": True}, status_code=200)
+    except Exception as e:
+        print(f"Error processing pub/sub message: {e}")
+        # Return a 200 to prevent Pub/Sub from retrying a failing message indefinitely.
+        return JSONResponse(content={"success": False, "error": str(e)}, status_code=200)
+
+@router.post("/tasks/renew-gmail-watch")
+async def trigger_renew_watch(x_internal_secret: str = Header(None)):
+    """
+    A cron job endpoint to renew all Gmail watch requests. Protected by a secret header.
+    """
+    if not INTERNAL_TASK_SECRET or x_internal_secret != INTERNAL_TASK_SECRET:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Invalid or missing secret token."
+        )
+
+    print("Initiating daily renewal of Gmail watch requests...")
+    summary = _renew_all_user_watches()
+    print(summary)
     return {"status": "success", "message": summary}

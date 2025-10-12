@@ -1,7 +1,7 @@
-docker build -t us-west2-docker.pkg.dev/agentemail-468518/agent-email-repo/agent-email:v1 .
-docker push us-west2-docker.pkg.dev/agentemail-468518/agent-email-repo/agent-email:v1
+docker build -t us-west2-docker.pkg.dev/agentemail-468518/agent-email-repo/agent-email:v1.1 .
+docker push us-west2-docker.pkg.dev/agentemail-468518/agent-email-repo/agent-email:v1.1
 gcloud run deploy email-service \
---image="us-west2-docker.pkg.dev/agentemail-468518/agent-email-repo/agent-email:v1" \
+--image="us-west2-docker.pkg.dev/agentemail-468518/agent-email-repo/agent-email:v1.1" \
 --platform=managed \
 --memory=1Gi \
 --region=us-west2 \

@@ -3,6 +3,7 @@ from fastembed import TextEmbedding
 import pg8000
 import os
 import ssl
+from dataclasses import dataclass
 
 AIVEN_PASSWORD = os.environ["AIVEN_PASSWORD"]
 # Ensure our content fits into RAG vector limit (384 dims)
@@ -21,16 +22,36 @@ class DBManager:
         # Load the embedding model once when the DBManager is initialized for efficiency
         self.embedding_model = TextEmbedding()
 
-    """
-    Inserts a new user into the database. Returns True if successful, False otherwise.
-    Does not insert if user with email already exists.
-    """
-    def insert_new_user(self, name, user_email, refresh_token, historyID) -> bool:
+    def user_exists(self, user_email: str) -> bool:
+        """
+        Checks if a user exists in the database based on their email.
+        Returns True if the user exists, False otherwise.
+        """
+        conn = None
+        try:
+            conn = self.mypool.connect()
+            cur = conn.cursor()
+            cur.execute('SELECT 1 FROM users WHERE email = %s;', (user_email,))
+            return cur.fetchone() is not None
+        except Exception as e:
+            print(f"Database operation failed while checking if user {user_email} exists.")
+            print(e)
+            return False # Assume user doesn't exist on error
+        finally:
+            if conn:
+                conn.close()
+
+    def insert_new_user(self, name: str, user_email: str, refresh_token: str, history_id: str) -> bool:
+        """
+        Inserts a new user into the database.
+        Returns True if a new user was created, False if the user already existed.
+        """
         if not user_email or not refresh_token:
             print("user_email or refresh_token are None.")
             return False
 
         conn = None
+        was_inserted = False
         try:
             conn = self.mypool.connect()
             cur = conn.cursor()
@@ -38,8 +59,10 @@ class DBManager:
                 'INSERT INTO users (name, email, encrypted_refresh_token, history_id) '
                 'VALUES (%s, %s, %s, %s) '
                 'ON CONFLICT (email) DO NOTHING',
-                (name, user_email, refresh_token, historyID)
+                (name, user_email, refresh_token, history_id)
             )
+            # rowcount will be 1 if a row was inserted, 0 otherwise.
+            was_inserted = cur.rowcount == 1
             conn.commit()
         except Exception as e:
             print("Exception trying to insert new user into db.")
@@ -49,7 +72,7 @@ class DBManager:
             if conn:
                 conn.close()
 
-        return True
+        return was_inserted
 
     """
     Updates the historyID for a user identified by their email. Returns True if successful, False
