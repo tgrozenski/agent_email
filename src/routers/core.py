@@ -38,14 +38,15 @@ async def _login_or_register_user(token: dict) -> tuple[str, str, bool]:
     if not user_email:
         raise ValueError("Email not found in token.")
 
-    # Check if user already exists
+    refresh_token = token.get('refresh_token')
     if db_manager.user_exists(user_email):
+        # update the refresh token, it currently expires after 7 days
+        db_manager.update_refresh_token(refresh_token, user_email)
         return f"User {user_email} now logged in.", token['id_token'], False
 
     # If user is new, create them
     user_name = idinfo.get('name', 'N/A')
-    refresh_token = token.get('refresh_token')
-    
+
     creds = Credentials(token=token['access_token'], refresh_token=refresh_token)
     service = build('gmail', 'v1', credentials=creds)
     profile = service.users().getProfile(userId='me').execute()

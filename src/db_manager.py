@@ -325,6 +325,25 @@ class DBManager:
             if conn:
                 conn.close()
 
+    def update_refresh_token(self, refresh_token: str, email: str) -> bool:
+        """
+        This method will serve to update a user's refresh token to the most up to date token
+        """
+        conn = None
+        try:
+            conn = self.mypool.connect()
+            cur = conn.cursor()
+            cur.execute('UPDATE users SET encrypted_refresh_token = %s WHERE email = %s;', (refresh_token, email))
+            conn.commit()
+            return cur.rowcount == 1
+        except Exception as e:
+            print("Database operation failed in update_refresh_token.")
+            print(e)
+            return False
+        finally:
+            if conn:
+                conn.close()
+
     @staticmethod
     def getcon():
         ssl_context = ssl.create_default_context(cafile="ca.pem")
